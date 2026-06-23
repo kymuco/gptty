@@ -172,4 +172,4 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. В следующих PR backend-поведение будет переноситься на `chatgpt-web-adapter`, появятся `gptty ask`, pipe-сценарии, attach существующих ChatGPT-чтов, export и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. В следующих PR backend-поведение будет переноситься на `chatgpt-web-adapter`, появятся `gptty ask`, pipe-сценарии, attach существующих ChatGPT-чатов, export и улучшенный auth UX.
