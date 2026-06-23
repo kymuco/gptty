@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gptty-web"
+version = "0.1.0"
+description = "Terminal client for existing ChatGPT web sessions, powered by chatgpt-web-adapter."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "kymuco" }
+]
+keywords = ["chatgpt", "cli", "terminal", "tty", "web-session"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Terminals",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "chatgpt-web-adapter>=0.1.4,<0.2.0",
+]
+
+[project.optional-dependencies]
+auth = [
+  "g4f==7.3.0",
+  "platformdirs==4.9.4",
+  "zendriver==0.15.3",
+]
+test = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/kymuco/gptty"
+Repository = "https://github.com/kymuco/gptty"
+Issues = "https://github.com/kymuco/gptty/issues"
+
+[project.scripts]
+gptty = "gptty.cli:main"
+
+[tool.setuptools]
+packages = ["gptty"]
+py-modules = ["main"]
+
+[tool.setuptools.package-dir]
+gptty = "src/gptty"
