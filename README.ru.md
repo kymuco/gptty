@@ -1,16 +1,42 @@
-# webchat-openai-cli
+# gptty
 
 Русская версия. English version: [README.md](README.md)
 
-Минималистичный CLI в стиле ChatGPT для `chatgpt.com`, который работает на вашем собственном аккаунте.
+Terminal-клиент для существующих ChatGPT web-сессий.
 
-Проект состоит из двух практических частей:
+> [!WARNING]
+> Это не официальный OpenAI API.
+> Используется существующая ChatGPT web-сессия.
+> Поведение web backend может измениться.
 
-- `main.py` - самостоятельный CLI-чат с историей, стримингом, метриками, поддержкой изображений и локализацией.
-- `auth_fetcher.py` - получение `auth_data.json` через реальную браузерную сессию ChatGPT.
+`gptty` — новое имя и направление бывшего `webchat-openai-cli`. Проект постепенно переезжает из standalone-скрипта в terminal-native продукт поверх [`chatgpt-web-adapter`](https://github.com/kymuco/chatgpt-web-adapter).
 
-## Возможности
+Текущая переходная версия сохраняет старый интерактивный CLI, но уже добавляет package layout и команду `gptty`.
 
+## Направление проекта
+
+```text
+SDK = chatgpt-web-adapter
+CLI = gptty
+```
+
+Целевой CLI должен поддерживать сценарии вроде:
+
+```bash
+gptty chat
+gptty ask "explain this error"
+git diff | gptty ask "review this patch"
+gptty attach https://chatgpt.com/c/...
+gptty messages --last 5
+gptty status
+gptty export --format md
+```
+
+В PR0 подключён только переходный интерактивный режим `gptty chat`. Остальные команды будут добавляться отдельными PR.
+
+## Возможности сейчас
+
+- интерактивный terminal-chat через legacy runtime из `main.py`
 - потоковый вывод ответа в терминал
 - метрики задержки: `first_token`, `last_token`, `total`
 - единый локальный state-файл: `webchat_state.json`
@@ -18,27 +44,35 @@
 - запросы с изображениями через `/img`
 - режимы авторизации `auto` и `wait`
 - локализация CLI на английский и русский
-- `main.py` запускается без внешних Python-библиотек
+- переходная команда `gptty`
 
 ## Требования
 
-- Windows
-- Python 3.13+
+- Python 3.10+
 - системный `curl` в `PATH`
 - Chrome или Chromium для `auth_fetcher.py`
+- валидный `auth_data.json` для существующей ChatGPT web-сессии
 
-## Установка
+## Установка из checkout
 
-Создать и активировать виртуальное окружение в `cmd.exe`:
+Создать и активировать виртуальное окружение:
+
+```bash
+python -m venv .venv
+python -m pip install --upgrade pip
+python -m pip install -e .[auth]
+```
+
+В Windows `cmd.exe`:
 
 ```cmd
 python -m venv venv
 venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e .[auth]
 ```
 
-Сам `main.py` не требует внешних Python-зависимостей, но `auth_fetcher.py` использует `g4f`, `zendriver` и `platformdirs`.
+PyPI distribution name планируется как `gptty-web`, потому что имя `gptty` на PyPI уже занято. Установленная команда всё равно будет называться `gptty`.
 
 ## Получение `auth_data.json`
 
@@ -72,17 +106,25 @@ venv\Scripts\python.exe auth_fetcher_wait.py
 
 ## Запуск CLI
 
-```cmd
+Предпочтительная переходная команда:
+
+```bash
+gptty chat
+```
+
+Старый entrypoint пока поддерживается:
+
+```bash
 python main.py
 ```
 
-Или через виртуальное окружение:
+Можно явно указать пути:
 
-```cmd
-venv\Scripts\python.exe main.py
+```bash
+gptty chat --auth ./auth_data.json --state ./webchat_state.json
 ```
 
-## Полезные команды
+## Полезные legacy-команды
 
 - `/help`
 - `/models`
@@ -116,18 +158,18 @@ venv\Scripts\python.exe main.py
 ## Устранение проблем
 
 - Не найден `curl`
-  Установите системный `curl.exe` и проверьте, что команда `curl --version` работает в `cmd.exe`.
+  Установите системный `curl.exe` и проверьте, что команда `curl --version` работает.
 - Отсутствует `auth_data.json`
-  Запустите `venv\Scripts\python.exe auth_fetcher.py --mode wait`, завершите вход в браузере, затем отправьте любое сообщение в окне чата.
+  Запустите `python auth_fetcher.py --mode wait`, завершите вход в браузере, затем отправьте любое сообщение в окне чата.
 - В `auth_fetcher` открывается не тот аккаунт
   В используемом браузерном профиле уже сохранена другая сессия. Выйдите из неё или используйте wait-режим и войдите в нужный аккаунт.
 - Сначала всё работало, а потом запросы перестали проходить
   Скорее всего истекли cookies сессии или `api_key`. Сгенерируйте `auth_data.json` заново.
-- `main.py` запускается, но не отвечает
+- `gptty chat` запускается, но не отвечает
   Проверьте, что `auth_data.json` существует, `curl` установлен, а сохранённая браузерная сессия относится к нужному аккаунту.
 
 ## Статус
 
-Этот репозиторий теперь можно считать `stable v1`: компактным, практичным и ориентированным на конечного пользователя.
+Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-Его scope остаётся прежним: CLI для пользователя и browser auth capture. Дальнейший reusable transport или adapter-слой лучше развивать уже в отдельном репозитории, например `webchat-adapter`, чтобы этот проект не разрастался и оставался простым в поддержке.
+PR0 закладывает package skeleton и console command. В следующих PR backend-поведение будет переноситься на `chatgpt-web-adapter`, появятся `gptty ask`, pipe-сценарии, attach существующих ChatGPT-чатов, export и улучшенный auth UX.
