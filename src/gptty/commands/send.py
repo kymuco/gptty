@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..media import MediaInputError, collect_media_inputs
 from ..output import OutputFormat, normalize_response, render_response
 from ..prompt import build_prompt
 from ..sdk_client import GpttyClient
@@ -39,6 +40,12 @@ def run_send(
         print(EMPTY_PROMPT_ERROR, file=stderr)
         return 2
 
+    try:
+        media = collect_media_inputs(args)
+    except MediaInputError as exc:
+        print(f"gptty: {exc}", file=stderr)
+        return 2
+
     state_path = Path(getattr(args, "state", "gptty_state.json"))
     try:
         state = load_chat_state(state_path)
@@ -67,6 +74,8 @@ def run_send(
     model = getattr(args, "model", None)
     if model:
         options["model"] = model
+    if media:
+        options["media"] = media
     if stream:
         options["on_token"] = on_token
 
