@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 from io import StringIO
+from pathlib import Path
 from typing import Any
 
 from gptty.commands.ask import run_ask
@@ -38,6 +39,7 @@ def make_args(**overrides: Any) -> Namespace:
         "no_stream": True,
         "plain": False,
         "timeout": 90,
+        "image": [],
     }
     values.update(overrides)
     return Namespace(**values)
@@ -96,6 +98,58 @@ def test_run_ask_passes_auth_timeout_and_model() -> None:
     assert client.auth_file == "custom_auth.json"
     assert client.timeout == 12
     assert client.calls[0][2] == {"stream": False, "model": "gpt-4o-mini"}
+
+
+def test_run_ask_passes_image_media_to_sdk(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+    image_path = tmp_path / "screenshot.png"
+    image_path.write_bytes(b"fake image")
+
+    code = run_ask(
+        make_args(image=[str(image_path), "https://example.com/chart.webp"]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls[0][2] == {
+        "stream": False,
+        "media": [str(image_path), "https://example.com/chart.webp"],
+    }
+
+
+def test_run_ask_allows_data_uri_media() -> None:
+    FakeGpttyClient.instances.clear()
+
+    code = run_ask(
+        make_args(image=["data:image/png;base64,AAAA"]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls[0][2] == {
+        "stream": False,
+        "media": ["data:image/png;base64,AAAA"],
+    }
+
+
+def test_run_ask_returns_2_for_missing_local_image(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+    stderr = StringIO()
+
+    code = run_ask(
+        make_args(image=[str(tmp_path / "missing.png")]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+        stderr=stderr,
+    )
+
+    assert code == 2
+    assert FakeGpttyClient.instances == []
+    assert "image file does not exist" in stderr.getvalue()
 
 
 def test_run_ask_uses_stdin_as_prompt() -> None:
