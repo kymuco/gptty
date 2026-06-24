@@ -48,15 +48,45 @@ def test_gptty_client_keeps_auth_and_timeout() -> None:
     assert client.timeout == 123
 
 
-def test_send_delegates_to_sdk_client() -> None:
+def test_send_delegates_to_sdk_client_without_cli_stream_option() -> None:
     sdk = FakeSdkClient()
     client = GpttyClient(sdk_client=sdk)
 
-    result = client.send("hello", model="gpt-4o-mini", stream=True)
+    result = client.send(
+        "hello",
+        model="gpt-4o-mini",
+        stream=True,
+        media=["image.png"],
+    )
 
     assert result == "send-result"
     assert sdk.calls == [
-        ("send", ("hello",), {"model": "gpt-4o-mini", "stream": True})
+        (
+            "send",
+            ("hello",),
+            {"model": "gpt-4o-mini", "media": ["image.png"]},
+        )
+    ]
+
+
+def test_send_to_conversation_delegates_without_cli_stream_option() -> None:
+    sdk = FakeSdkClient()
+    client = GpttyClient(sdk_client=sdk)
+
+    result = client.send_to_conversation(
+        "abc",
+        "continue",
+        stream=False,
+        media=["image.png"],
+    )
+
+    assert result == "send-to-conversation-result"
+    assert sdk.calls == [
+        (
+            "send_to_conversation",
+            ("abc", "continue"),
+            {"media": ["image.png"]},
+        )
     ]
 
 
@@ -65,20 +95,12 @@ def test_conversation_methods_delegate_to_sdk_client() -> None:
     client = GpttyClient(sdk_client=sdk)
 
     assert client.attach_conversation("abc") == "attach-result"
-    assert client.send_to_conversation("abc", "continue", preserve_model=True) == (
-        "send-to-conversation-result"
-    )
     assert client.get_messages("abc", limit=5) == "messages-result"
     assert client.get_status("abc") == "status-result"
     assert client.wait_until_completed("abc", timeout=30) == "wait-result"
 
     assert sdk.calls == [
         ("attach_conversation", ("abc",), {}),
-        (
-            "send_to_conversation",
-            ("abc", "continue"),
-            {"preserve_model": True},
-        ),
         ("get_messages", ("abc",), {"limit": 5}),
         ("get_status", ("abc",), {}),
         ("wait_until_completed", ("abc",), {"timeout": 30}),
