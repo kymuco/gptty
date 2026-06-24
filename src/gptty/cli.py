@@ -8,6 +8,25 @@ from . import __version__
 from .io import StdinReadError, read_stdin_text
 
 
+def _add_session_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--auth",
+        default="auth_data.json",
+        help="Path to auth_data.json.",
+    )
+    parser.add_argument(
+        "--state",
+        default="gptty_state.json",
+        help="Path to the local gptty state file.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=90,
+        help="Request timeout in seconds.",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gptty",
@@ -108,6 +127,42 @@ def _build_parser() -> argparse.ArgumentParser:
         default=90,
         help="Request timeout in seconds.",
     )
+
+    attach_parser = subparsers.add_parser(
+        "attach",
+        help="Attach an existing ChatGPT conversation and save it in gptty state.",
+    )
+    attach_parser.add_argument("url_or_id", help="Conversation URL or id to attach.")
+    _add_session_options(attach_parser)
+
+    messages_parser = subparsers.add_parser(
+        "messages",
+        help="Print messages from an explicit or attached ChatGPT conversation.",
+    )
+    messages_parser.add_argument(
+        "url_or_id",
+        nargs="?",
+        help="Optional conversation URL or id. Defaults to the attached conversation.",
+    )
+    messages_parser.add_argument(
+        "--last",
+        type=int,
+        default=None,
+        help="Limit output to the last N messages when supported by the SDK.",
+    )
+    _add_session_options(messages_parser)
+
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Print status for an explicit or attached ChatGPT conversation.",
+    )
+    status_parser.add_argument(
+        "url_or_id",
+        nargs="?",
+        help="Optional conversation URL or id. Defaults to the attached conversation.",
+    )
+    _add_session_options(status_parser)
+
     return parser
 
 
@@ -138,6 +193,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"gptty: {exc}", file=sys.stderr)
             return 1
         return run_ask(args, stdin_text=stdin_text)
+
+    if args.command == "attach":
+        from .commands.attach import run_attach
+
+        return run_attach(args)
+
+    if args.command == "messages":
+        from .commands.messages import run_messages
+
+        return run_messages(args)
+
+    if args.command == "status":
+        from .commands.status import run_status
+
+        return run_status(args)
 
     if args.command in {None, "chat"}:
         if bool(getattr(args, "legacy", False)):

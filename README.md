@@ -32,11 +32,13 @@ gptty status
 gptty export --format md
 ```
 
-`gptty ask` and the default `gptty chat` path are SDK-backed. The legacy interactive runtime remains available through `gptty chat --legacy` while feature parity is migrated in later PRs.
+`gptty ask`, the default `gptty chat` path, and conversation inspection commands are SDK-backed. The legacy interactive runtime remains available through `gptty chat --legacy` while feature parity is migrated in later PRs.
 
 ## Current Features
 
 - minimal SDK-backed interactive chat through `gptty chat`
+- attach existing conversations through `gptty attach`
+- inspect attached or explicit conversations through `gptty messages` and `gptty status`
 - legacy interactive chat fallback through `gptty chat --legacy`
 - one-shot SDK-backed prompts through `gptty ask`
 - centralized stdin policy for pipe-friendly prompts
@@ -110,6 +112,26 @@ After a successful capture, `auth_data.json` will appear in the project director
 
 ## Run the CLI
 
+Attach an existing ChatGPT conversation:
+
+```bash
+gptty attach https://chatgpt.com/c/...
+```
+
+Inspect the attached conversation:
+
+```bash
+gptty messages --last 5
+gptty status
+```
+
+You can also inspect an explicit conversation without attaching it:
+
+```bash
+gptty messages https://chatgpt.com/c/... --last 5
+gptty status https://chatgpt.com/c/...
+```
+
 Minimal SDK-backed interactive chat:
 
 ```bash
@@ -172,6 +194,7 @@ python main.py
 You can also override local paths:
 
 ```bash
+gptty attach https://chatgpt.com/c/... --auth ./auth_data.json --state ./gptty_state.json
 gptty chat --auth ./auth_data.json --state ./gptty_state.json
 gptty chat --legacy --auth ./auth_data.json --state ./webchat_state.json
 gptty ask --auth ./auth_data.json --timeout 120 "hello"
@@ -217,6 +240,8 @@ Available in `gptty chat --legacy`:
   Install system `curl.exe` and make sure `curl --version` works.
 - `auth_data.json` is missing
   Run `python auth_fetcher.py --mode wait`, complete login in the browser, then send any message in the chat window.
+- `gptty messages` or `gptty status` says there is no attached conversation
+  Run `gptty attach <url-or-id>` first, or pass a conversation URL/id directly to the command.
 - `ImportError: cannot import name 'nodriver'`
   Reinstall auth dependencies with `python -m pip install -e .[auth]`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
 - The wrong account opens in `auth_fetcher`
@@ -232,4 +257,4 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. Later PRs will add attach existing ChatGPT conversations, messages/status, export, richer pipe workflows, image prompt parity, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. Later PRs will add send-to-attached conversation, export, richer pipe workflows, image prompt parity, and improved auth UX.

@@ -5,7 +5,10 @@ from typing import Any
 import pytest
 
 import gptty.commands.ask as ask_command
+import gptty.commands.attach as attach_command
 import gptty.commands.chat as chat_command
+import gptty.commands.messages as messages_command
+import gptty.commands.status as status_command
 from gptty import cli
 from gptty.io import StdinReadError
 
@@ -161,4 +164,65 @@ def test_chat_legacy_keeps_custom_paths(monkeypatch: pytest.MonkeyPatch) -> None
     assert calls == {
         "state_path": "old_state.json",
         "auth_file": "auth.json",
+    }
+
+
+def test_attach_routes_to_attach_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_run_attach(args: Any) -> int:
+        calls["url_or_id"] = args.url_or_id
+        calls["state"] = args.state
+        calls["auth"] = args.auth
+        calls["timeout"] = args.timeout
+        return 0
+
+    monkeypatch.setattr(attach_command, "run_attach", fake_run_attach)
+
+    assert cli.main(["attach", "abc", "--state", "state.json", "--auth", "auth.json", "--timeout", "12"]) == 0
+    assert calls == {
+        "url_or_id": "abc",
+        "state": "state.json",
+        "auth": "auth.json",
+        "timeout": 12,
+    }
+
+
+def test_messages_routes_to_messages_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_run_messages(args: Any) -> int:
+        calls["url_or_id"] = args.url_or_id
+        calls["last"] = args.last
+        calls["state"] = args.state
+        return 0
+
+    monkeypatch.setattr(messages_command, "run_messages", fake_run_messages)
+
+    assert cli.main(["messages", "abc", "--last", "5", "--state", "state.json"]) == 0
+    assert calls == {
+        "url_or_id": "abc",
+        "last": 5,
+        "state": "state.json",
+    }
+
+
+def test_status_routes_to_status_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_run_status(args: Any) -> int:
+        calls["url_or_id"] = args.url_or_id
+        calls["state"] = args.state
+        calls["auth"] = args.auth
+        calls["timeout"] = args.timeout
+        return 0
+
+    monkeypatch.setattr(status_command, "run_status", fake_run_status)
+
+    assert cli.main(["status", "abc", "--state", "state.json", "--auth", "auth.json", "--timeout", "12"]) == 0
+    assert calls == {
+        "url_or_id": "abc",
+        "state": "state.json",
+        "auth": "auth.json",
+        "timeout": 12,
     }
