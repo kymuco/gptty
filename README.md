@@ -28,8 +28,8 @@ gptty ask "explain this error"
 git diff | gptty ask "review this patch"
 gptty attach https://chatgpt.com/c/...
 gptty send "continue from here"
-gptty messages --last 5
-gptty status
+gptty messages --last 5 --format markdown
+gptty status --format json
 gptty export --format md
 ```
 
@@ -41,6 +41,7 @@ gptty export --format md
 - attach existing conversations through `gptty attach`
 - send prompts to attached, explicit, or new conversations through `gptty send`
 - inspect attached or explicit conversations through `gptty messages` and `gptty status`
+- output modes for `messages`, `status`, and `send`: `plain`, `json`, `markdown`
 - legacy interactive chat fallback through `gptty chat --legacy`
 - one-shot SDK-backed prompts through `gptty ask`
 - centralized stdin policy for pipe-friendly prompts
@@ -150,6 +151,17 @@ Inspect the attached conversation:
 gptty messages --last 5
 gptty status
 ```
+
+Use JSON or Markdown output for scripts and exports:
+
+```bash
+gptty messages --last 5 --format json
+gptty messages --last 5 --format markdown
+gptty status --format json
+gptty send --format json "summarize the current thread"
+```
+
+When `gptty send` uses `--format json` or `--format markdown`, streaming is disabled internally so the output stays complete and parseable.
 
 You can also inspect an explicit conversation without attaching it:
 
@@ -285,4 +297,4 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. Later PRs will add export, richer pipe workflows, image prompt parity, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. Later PRs will add export, richer pipe workflows, image prompt parity, and improved auth UX.
