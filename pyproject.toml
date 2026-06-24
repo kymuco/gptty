@@ -49,7 +49,7 @@ gptty = "gptty.cli:main"
 
 [tool.setuptools]
 packages = ["gptty", "gptty.commands"]
-py-modules = ["main"]
+py-modules = ["main", "auth_fetcher", "auth_fetcher_wait"]
 
 [tool.setuptools.package-dir]
 gptty = "src/gptty"
