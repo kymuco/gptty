@@ -28,8 +28,8 @@ gptty ask "explain this error"
 git diff | gptty ask "review this patch"
 gptty attach https://chatgpt.com/c/...
 gptty send "continue from here"
-gptty messages --last 5
-gptty status
+gptty messages --last 5 --format markdown
+gptty status --format json
 gptty export --format md
 ```
 
@@ -41,6 +41,7 @@ gptty export --format md
 - attach существующих conversations через `gptty attach`
 - отправка prompt в attached, explicit или новый conversation через `gptty send`
 - просмотр attached или explicit conversations через `gptty messages` и `gptty status`
+- output modes для `messages`, `status` и `send`: `plain`, `json`, `markdown`
 - legacy interactive chat fallback через `gptty chat --legacy`
 - one-shot SDK-backed запросы через `gptty ask`
 - централизованная stdin-политика для pipe-friendly prompts
@@ -150,6 +151,17 @@ gptty send --new "start a new conversation"
 gptty messages --last 5
 gptty status
 ```
+
+Использовать JSON или Markdown output для scripts и exports:
+
+```bash
+gptty messages --last 5 --format json
+gptty messages --last 5 --format markdown
+gptty status --format json
+gptty send --format json "summarize the current thread"
+```
+
+Когда `gptty send` используется с `--format json` или `--format markdown`, streaming отключается внутри команды, чтобы output оставался полным и пригодным для парсинга.
 
 Можно смотреть explicit conversation без attach:
 
@@ -283,4 +295,4 @@ gptty ask --auth ./auth_data.json --timeout 120 "hello"
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. В следующих PR появятся export, более богатые pipe-сценарии, image prompt parity и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. PR7 добавляет shared output modes для messages/status/send. В следующих PR появятся export, более богатые pipe-сценарии, image prompt parity и улучшенный auth UX.
