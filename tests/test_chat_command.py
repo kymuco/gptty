@@ -89,7 +89,7 @@ def test_existing_conversation_uses_send_to_conversation(tmp_path) -> None:
     assert client.calls[0][2]["stream"] is True
 
 
-def test_new_command_clears_conversation(tmp_path) -> None:
+def test_new_command_clears_conversation_without_sdk_init(tmp_path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="conv-1"))
     stdout = StringIO()
@@ -104,10 +104,10 @@ def test_new_command_clears_conversation(tmp_path) -> None:
     assert code == 0
     assert stdout.getvalue() == "Started a new chat.\n"
     assert load_chat_state(tmp_path / "gptty_state.json").current_conversation is None
-    assert FakeGpttyClient.instances[0].calls == []
+    assert FakeGpttyClient.instances == []
 
 
-def test_exit_command_returns_zero(tmp_path) -> None:
+def test_exit_command_returns_zero_without_sdk_init(tmp_path) -> None:
     FakeGpttyClient.instances.clear()
 
     code = run_chat(
@@ -118,7 +118,7 @@ def test_exit_command_returns_zero(tmp_path) -> None:
     )
 
     assert code == 0
-    assert FakeGpttyClient.instances[0].calls == []
+    assert FakeGpttyClient.instances == []
 
 
 def test_empty_input_is_ignored(tmp_path) -> None:
