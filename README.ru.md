@@ -11,7 +11,7 @@ Terminal-клиент для существующих ChatGPT web-сессий.
 
 `gptty` — новое имя и направление бывшего `webchat-openai-cli`. Проект постепенно переезжает из standalone-скрипта в terminal-native продукт поверх [`chatgpt-web-adapter`](https://github.com/kymuco/chatgpt-web-adapter).
 
-Текущая переходная версия сохраняет старый интерактивный CLI, но уже добавляет package layout и команду `gptty`.
+Текущая переходная версия сохраняет legacy CLI доступным, но уже добавляет package layout, команду `gptty` и SDK-backed internals.
 
 ## Направление проекта
 
@@ -32,21 +32,22 @@ gptty status
 gptty export --format md
 ```
 
-`gptty ask` — первая команда, которая уже работает через SDK boundary. Legacy interactive chat остаётся доступен как `gptty chat`, пока остальные части CLI переносятся отдельными PR.
+`gptty ask` и default `gptty chat` уже работают через SDK boundary. Legacy interactive runtime остаётся доступен через `gptty chat --legacy`, пока feature parity переносится отдельными PR.
 
 ## Возможности сейчас
 
+- минимальный SDK-backed interactive chat через `gptty chat`
+- legacy interactive chat fallback через `gptty chat --legacy`
 - one-shot SDK-backed запросы через `gptty ask`
 - централизованная stdin-политика для pipe-friendly prompts
 - pipe-friendly prompts, например `git diff | gptty ask "review this patch"`
-- интерактивный terminal-chat через legacy runtime из `main.py`
 - потоковый вывод ответа в терминал
-- метрики задержки: `first_token`, `last_token`, `total`
-- единый локальный state-файл: `webchat_state.json`
+- минимальный SDK chat state-файл: `gptty_state.json`
+- legacy state-файл для `--legacy`: `webchat_state.json`
 - атомарная запись локального state и `auth_data.json`
-- запросы с изображениями через `/img`
+- legacy-запросы с изображениями через `/img` в `gptty chat --legacy`
 - режимы авторизации `auto` и `wait`
-- локализация CLI на английский и русский
+- локализация CLI на английский и русский в legacy runtime
 - переходная команда `gptty`
 
 ## Требования
@@ -109,6 +110,27 @@ venv\Scripts\python.exe auth_fetcher_wait.py
 
 ## Запуск CLI
 
+Минимальный SDK-backed interactive chat:
+
+```bash
+gptty chat
+```
+
+SDK-backed chat loop сейчас поддерживает:
+
+```text
+/help
+/new
+/exit
+/quit
+```
+
+Запустить полный legacy interactive runtime:
+
+```bash
+gptty chat --legacy
+```
+
 One-shot SDK-backed prompt:
 
 ```bash
@@ -141,12 +163,6 @@ cat noisy.log | gptty ask --no-stdin "explain this from the prompt only"
 gptty ask --no-stream "summarize this session"
 ```
 
-Предпочтительная переходная интерактивная команда:
-
-```bash
-gptty chat
-```
-
 Старый entrypoint пока поддерживается:
 
 ```bash
@@ -156,11 +172,14 @@ python main.py
 Можно явно указать пути:
 
 ```bash
+gptty chat --auth ./auth_data.json --state ./gptty_state.json
+gptty chat --legacy --auth ./auth_data.json --state ./webchat_state.json
 gptty ask --auth ./auth_data.json --timeout 120 "hello"
-gptty chat --auth ./auth_data.json --state ./webchat_state.json
 ```
 
 ## Полезные legacy-команды
+
+Доступны в `gptty chat --legacy`:
 
 - `/help`
 - `/models`
@@ -179,7 +198,8 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 ## Важные файлы
 
 - `auth_data.json` - локальные данные авторизации, не коммитить
-- `webchat_state.json` - локальная история чатов и runtime-настройки, не коммитить
+- `gptty_state.json` - минимальный SDK-backed chat state, не коммитить
+- `webchat_state.json` - legacy-история чатов и runtime-настройки, не коммитить
 
 ## Замечания
 
@@ -202,10 +222,12 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 - Сначала всё работало, а потом запросы перестали проходить
   Скорее всего истекли cookies сессии или `api_key`. Сгенерируйте `auth_data.json` заново.
 - `gptty chat` запускается, но не отвечает
+  Проверьте, что `auth_data.json` существует, а сохранённая браузерная сессия относится к нужному аккаунту.
+- `gptty chat --legacy` запускается, но не отвечает
   Проверьте, что `auth_data.json` существует, `curl` установлен, а сохранённая браузерная сессия относится к нужному аккаунту.
 
 ## Статус
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. В следующих PR появятся attach существующих ChatGPT-чатов, messages/status, export, более богатые pipe-сценарии и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. В следующих PR появятся attach существующих ChatGPT-чатов, messages/status, export, более богатые pipe-сценарии, image prompt parity и улучшенный auth UX.
