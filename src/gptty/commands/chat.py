@@ -14,6 +14,7 @@ from ..locks import (
     render_lock_timeout,
     render_stale_lock_recovered,
 )
+from ..runs import RunRecorder, start_run
 from ..sdk_client import GpttyClient
 from ..state import ChatState, StateError, load_chat_state, save_chat_state
 
@@ -178,10 +179,21 @@ def _send_chat_prompt(
     stderr: TextIO,
 ) -> int:
     saw_stream_token = False
+    recorder: RunRecorder | None = None
+    if state.current_conversation:
+        recorder = start_run(
+            profile=profile,
+            state_path=state_path,
+            command="chat",
+            conversation_ref=state.current_conversation,
+        )
+        recorder.event("prompt_sent")
 
     def on_token(token: str) -> None:
         nonlocal saw_stream_token
         saw_stream_token = True
+        if recorder is not None:
+            recorder.event("token_delta", text=token)
         print(token, end="", file=stdout, flush=True)
 
     options: dict[str, Any] = {"stream": stream}
@@ -199,9 +211,13 @@ def _send_chat_prompt(
                 lock_dir=lock_dir,
                 profile=profile,
                 command="chat",
+                run_id=recorder.run_id if recorder is not None else None,
+                run_file=recorder.run_file if recorder is not None else None,
                 timeout=lock_timeout,
             )
         except ConversationLockError as exc:
+            if recorder is not None:
+                recorder.fail("conversation lock could not be acquired")
             if explicit_lock_wait:
                 render_lock_timeout(exc, stderr=stderr)
             else:
@@ -210,22 +226,31 @@ def _send_chat_prompt(
         render_stale_lock_recovered(lock, stderr=stderr)
 
     try:
+        if recorder is not None:
+            recorder.event("waiting_for_reply")
         try:
             if state.current_conversation:
                 response = client.send_to_conversation(state.current_conversation, prompt, **options)
             else:
                 response = client.send(prompt, **options)
         except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
+            if recorder is not None:
+                recorder.fail(str(exc))
             print(f"gptty: chat request failed: {exc}", file=stderr)
             return 1
 
+        text = response_text(response)
         if stream:
             if saw_stream_token:
                 print(file=stdout)
             else:
-                print(response_text(response), file=stdout)
+                if text and recorder is not None:
+                    recorder.event("token_delta", text=text)
+                print(text, file=stdout)
         else:
-            print(response_text(response), file=stdout)
+            if text and recorder is not None:
+                recorder.event("token_delta", text=text)
+            print(text, file=stdout)
 
         conversation_ref = extract_conversation_ref(response)
         if conversation_ref and conversation_ref != state.current_conversation:
@@ -233,9 +258,13 @@ def _send_chat_prompt(
             try:
                 save_chat_state(state_path, state)
             except StateError as exc:
+                if recorder is not None:
+                    recorder.fail(str(exc))
                 print(f"gptty: {exc}", file=stderr)
                 return 1
 
+        if recorder is not None:
+            recorder.complete()
         return 0
     finally:
         if lock is not None:
