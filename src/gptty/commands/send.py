@@ -18,6 +18,7 @@ from ..media import MediaInputError, collect_media_inputs
 from ..output import OutputFormat, normalize_response, render_response
 from ..prompt import build_prompt
 from ..required_action import maybe_render_required_action
+from ..runs import RunRecorder, start_run
 from ..sdk_client import GpttyClient
 from ..state import StateError, load_chat_state, save_chat_state
 
@@ -26,6 +27,7 @@ NO_CONVERSATION_ERROR = (
     "gptty send requires an attached conversation, `--to <url-or-id>`, or `--new`. "
     "Run `gptty attach <url-or-id>` first."
 )
+REQUIRED_ACTION_RUN_ERROR = "ChatGPT is waiting for a web UI action."
 
 CONVERSATION_REF_FIELDS = (
     "conversation_url",
@@ -74,10 +76,22 @@ def run_send(
     output_format: OutputFormat = getattr(args, "format", "plain")
     stream = not bool(getattr(args, "no_stream", False)) and output_format == "plain"
     saw_stream_token = False
+    recorder: RunRecorder | None = None
+
+    if conversation_ref:
+        recorder = start_run(
+            profile=getattr(args, "profile", None),
+            state_path=state_path,
+            command="send",
+            conversation_ref=str(conversation_ref),
+        )
+        recorder.event("prompt_sent")
 
     def on_token(token: str) -> None:
         nonlocal saw_stream_token
         saw_stream_token = True
+        if recorder is not None:
+            recorder.event("token_delta", text=token)
         print(token, end="", file=stdout, flush=True)
 
     options: dict[str, Any] = {"stream": stream}
@@ -98,9 +112,13 @@ def run_send(
                 lock_dir=lock_dir,
                 profile=getattr(args, "profile", None),
                 command="send",
+                run_id=recorder.run_id if recorder is not None else None,
+                run_file=recorder.run_file if recorder is not None else None,
                 timeout=_lock_timeout(args),
             )
         except ConversationLockError as exc:
+            if recorder is not None:
+                recorder.fail("conversation lock could not be acquired")
             _render_lock_failure(exc, args=args, stderr=stderr)
             return 2
         render_stale_lock_recovered(lock, stderr=stderr)
@@ -111,24 +129,37 @@ def run_send(
             timeout=getattr(args, "timeout", 90),
         )
 
+        if recorder is not None:
+            recorder.event("waiting_for_reply")
+
         try:
             if start_new:
                 response = client.send(prompt, **options)
             else:
                 response = client.send_to_conversation(conversation_ref, prompt, **options)
         except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
+            if recorder is not None:
+                recorder.fail(str(exc))
             print(f"gptty: send request failed: {exc}", file=stderr)
             return 1
 
         updated_ref = extract_conversation_ref(response, fallback=conversation_ref)
         normalized = normalize_response(response, conversation=updated_ref)
         response_text_value = normalized.get("text", "")
+        if not saw_stream_token and response_text_value and recorder is not None:
+            recorder.event("token_delta", text=response_text_value)
         if not saw_stream_token and not response_text_value and maybe_render_required_action(
             client,
             response,
             stderr=stderr,
             fallback_conversation=updated_ref,
         ):
+            if recorder is not None:
+                recorder.event(
+                    "required_action",
+                    message=REQUIRED_ACTION_RUN_ERROR,
+                )
+                recorder.fail(REQUIRED_ACTION_RUN_ERROR)
             return 1
 
         if stream:
@@ -146,6 +177,8 @@ def run_send(
             try:
                 save_chat_state(state_path, state)
             except StateError as exc:
+                if recorder is not None:
+                    recorder.fail(str(exc))
                 print(f"gptty: {exc}", file=stderr)
                 return 1
         elif model and model != state.model:
@@ -153,9 +186,13 @@ def run_send(
             try:
                 save_chat_state(state_path, state)
             except StateError as exc:
+                if recorder is not None:
+                    recorder.fail(str(exc))
                 print(f"gptty: {exc}", file=stderr)
                 return 1
 
+        if recorder is not None:
+            recorder.complete()
         return 0
     finally:
         if lock is not None:

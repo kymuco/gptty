@@ -32,6 +32,8 @@ class ConversationLockInfo:
     command: str | None = None
     pid: int | None = None
     started_at: str | None = None
+    run_id: str | None = None
+    run_file: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,8 @@ def acquire_conversation_lock(
     lock_dir: str | Path,
     profile: str | None = None,
     command: str | None = None,
+    run_id: str | None = None,
+    run_file: str | Path | None = None,
     timeout: float = DEFAULT_LOCK_TIMEOUT_SECONDS,
     stale_after: float = DEFAULT_STALE_AFTER_SECONDS,
     poll_interval: float = 0.2,
@@ -89,6 +93,8 @@ def acquire_conversation_lock(
             command=command,
             pid=os.getpid(),
             started_at=datetime.now(timezone.utc).isoformat(),
+            run_id=run_id,
+            run_file=Path(run_file) if run_file is not None else None,
         )
         payload = json.dumps(_serialize_info(info), indent=2, sort_keys=True) + "\n"
         try:
@@ -128,6 +134,7 @@ def read_conversation_lock(path: str | Path, *, fallback_conversation: str) -> C
     profile = _optional_str(data.get("profile"))
     command = _optional_str(data.get("command"))
     pid = data.get("pid")
+    run_file = _optional_str(data.get("run_file"))
     return ConversationLockInfo(
         conversation_ref=conversation_ref,
         lock_path=lock_path,
@@ -135,6 +142,8 @@ def read_conversation_lock(path: str | Path, *, fallback_conversation: str) -> C
         command=command,
         pid=pid if isinstance(pid, int) else None,
         started_at=_optional_str(data.get("started_at")),
+        run_id=_optional_str(data.get("run_id")),
+        run_file=Path(run_file) if run_file else None,
     )
 
 
@@ -190,6 +199,8 @@ def render_stale_lock_recovered(lock: ConversationLock, *, stderr: TextIO) -> No
 def _serialize_info(info: ConversationLockInfo) -> dict[str, object]:
     data = asdict(info)
     data["lock_path"] = str(info.lock_path)
+    if info.run_file is not None:
+        data["run_file"] = str(info.run_file)
     return data
 
 
