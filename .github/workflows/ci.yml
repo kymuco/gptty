@@ -27,3 +27,25 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Smoke installed wheel
+        run: |
+          python -m pip install dist/*.whl
+          gptty --version
+          gptty auth status --auth missing-auth-data.json || test "$?" -eq 1
