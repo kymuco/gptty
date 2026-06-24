@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..output import OutputFormat, normalize_status, render_status
 from ..sdk_client import GpttyClient
 from ..state import StateError, load_chat_state
 
@@ -42,7 +43,8 @@ def run_status(
         print(f"gptty: status request failed: {exc}", file=stderr)
         return 1
 
-    print(format_status(response), file=stdout)
+    output_format: OutputFormat = getattr(args, "format", "plain")
+    print(render_status(normalize_status(response, conversation=conversation_ref), output_format), file=stdout)
     return 0
 
 
@@ -56,15 +58,4 @@ def resolve_conversation_ref(args: Any) -> str | None:
 
 
 def format_status(response: Any) -> str:
-    if isinstance(response, str):
-        return response
-    if isinstance(response, dict):
-        if "status" in response and len(response) == 1:
-            return str(response["status"])
-        return "\n".join(f"{key}: {value}" for key, value in response.items())
-
-    status = getattr(response, "status", None)
-    if status is not None:
-        return str(status)
-
-    return str(response)
+    return render_status(normalize_status(response), "plain")
