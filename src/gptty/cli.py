@@ -46,6 +46,16 @@ def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_image_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--image",
+        action="append",
+        default=[],
+        metavar="PATH_OR_URL",
+        help="Attach an image path, URL, or data URI. Can be used more than once.",
+    )
+
+
 def _add_output_format_option(parser: argparse.ArgumentParser, *, default: str = "plain") -> None:
     parser.add_argument(
         "--format",
@@ -78,6 +88,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Prompt text. If omitted, gptty reads the prompt from piped stdin.",
     )
     _add_stdin_options(ask_parser)
+    _add_image_options(ask_parser)
     ask_parser.add_argument(
         "--auth",
         default="auth_data.json",
@@ -126,6 +137,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Start a new conversation instead of using an attached conversation.",
     )
     _add_stdin_options(send_parser)
+    _add_image_options(send_parser)
     _add_session_options(send_parser)
     _add_output_format_option(send_parser)
     send_parser.add_argument(
