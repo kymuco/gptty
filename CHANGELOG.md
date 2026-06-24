@@ -6,6 +6,9 @@ The format is intentionally lightweight. Keep entries focused on user-visible be
 
 ## Unreleased
 
+- feat: add profile-aware auth/state path resolution with `gptty profile` commands
+- docs: document profile usage, resolution priority, and storage paths
+
 ## 0.1.1 - 2026-06-24
 
 - feat: show a clear terminal message when ChatGPT stops on a connector required-action card such as Gmail OAuth/linking
