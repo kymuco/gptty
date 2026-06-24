@@ -6,8 +6,10 @@ The format is intentionally lightweight. Keep entries focused on user-visible be
 
 ## Unreleased
 
+## 0.1.1 - 2026-06-24
+
 - feat: show a clear terminal message when ChatGPT stops on a connector required-action card such as Gmail OAuth/linking
-- release: prepare the first PyPI release flow for `gptty-web`.
+- changed: require `chatgpt-web-adapter>=0.1.5,<0.2.0` so required-action detection is available in supported installs
 
 ## 0.1.0
 
