@@ -6,6 +6,7 @@ The format is intentionally lightweight. Keep entries focused on user-visible be
 
 ## Unreleased
 
+- feat: show a clear terminal message when ChatGPT stops on a connector required-action card such as Gmail OAuth/linking
 - release: prepare the first PyPI release flow for `gptty-web`.
 
 ## 0.1.0

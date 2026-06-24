@@ -18,6 +18,8 @@ class ChatGPTWebClientProtocol(Protocol):
 
     def get_messages(self, url_or_id: Any, **options: Any) -> Any: ...
 
+    def get_required_action(self, url_or_id: Any, **options: Any) -> Any: ...
+
     def get_status(self, url_or_id: Any, **options: Any) -> Any: ...
 
     def wait_until_completed(self, url_or_id: Any, **options: Any) -> Any: ...
@@ -66,6 +68,12 @@ class GpttyClient:
 
     def get_messages(self, url_or_id: Any, **options: Any) -> Any:
         return self._client.get_messages(url_or_id, **options)
+
+    def get_required_action(self, url_or_id: Any, **options: Any) -> Any:
+        helper = getattr(self._client, "get_required_action", None)
+        if not callable(helper):
+            return None
+        return helper(url_or_id, **options)
 
     def get_status(self, url_or_id: Any, **options: Any) -> Any:
         return self._client.get_status(url_or_id, **options)

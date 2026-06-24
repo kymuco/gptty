@@ -6,6 +6,7 @@ from typing import Any, TextIO
 
 from ..media import MediaInputError, collect_media_inputs
 from ..prompt import build_prompt
+from ..required_action import maybe_render_required_action
 from ..sdk_client import GpttyClient
 
 
@@ -71,22 +72,34 @@ def run_ask(
         auth_file=getattr(args, "auth", "auth_data.json"),
         timeout=getattr(args, "timeout", 90),
     )
-    response = client.send(
-        prompt,
-        **_build_send_options(
-            args,
-            stream=stream,
-            media=media,
-            on_token=on_token if stream else None,
-        ),
-    )
+    try:
+        response = client.send(
+            prompt,
+            **_build_send_options(
+                args,
+                stream=stream,
+                media=media,
+                on_token=on_token if stream else None,
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
+        print(f"gptty: ask request failed: {exc}", file=stderr)
+        return 1
+
+    response_text = _response_text(response)
+    if not saw_stream_token and not response_text and maybe_render_required_action(
+        client,
+        response,
+        stderr=stderr,
+    ):
+        return 1
 
     if stream:
         if not saw_stream_token:
-            print(_response_text(response), file=stdout)
+            print(response_text, file=stdout)
         else:
             print(file=stdout)
     else:
-        print(_response_text(response), file=stdout)
+        print(response_text, file=stdout)
 
     return 0
