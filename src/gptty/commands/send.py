@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..output import OutputFormat, normalize_response, render_response
 from ..prompt import build_prompt
 from ..sdk_client import GpttyClient
 from ..state import StateError, load_chat_state, save_chat_state
@@ -53,7 +54,8 @@ def run_send(
         print(NO_CONVERSATION_ERROR, file=stderr)
         return 2
 
-    stream = not bool(getattr(args, "no_stream", False))
+    output_format: OutputFormat = getattr(args, "format", "plain")
+    stream = not bool(getattr(args, "no_stream", False)) and output_format == "plain"
     saw_stream_token = False
 
     def on_token(token: str) -> None:
@@ -82,15 +84,16 @@ def run_send(
         print(f"gptty: send request failed: {exc}", file=stderr)
         return 1
 
+    updated_ref = extract_conversation_ref(response, fallback=conversation_ref)
+
     if stream:
         if saw_stream_token:
             print(file=stdout)
         else:
-            print(response_text(response), file=stdout)
+            print(render_response(normalize_response(response, conversation=updated_ref), "plain"), file=stdout)
     else:
-        print(response_text(response), file=stdout)
+        print(render_response(normalize_response(response, conversation=updated_ref), output_format), file=stdout)
 
-    updated_ref = extract_conversation_ref(response, fallback=conversation_ref)
     if updated_ref and updated_ref != state.current_conversation:
         state.current_conversation = updated_ref
         if model:
@@ -129,14 +132,4 @@ def extract_conversation_ref(response: Any, fallback: Any = None) -> str | None:
 
 
 def response_text(response: Any) -> str:
-    text = getattr(response, "text", None)
-    if text is not None:
-        return str(text)
-    if isinstance(response, dict):
-        for field in ("text", "message", "content"):
-            value = response.get(field)
-            if value is not None:
-                return str(value)
-    if response is None:
-        return ""
-    return str(response)
+    return normalize_response(response).get("text", "")
