@@ -24,6 +24,8 @@ CLI = gptty
 
 ```bash
 gptty chat
+gptty auth status
+gptty auth refresh --mode wait
 gptty ask "explain this error"
 gptty ask --image screenshot.png "describe this UI"
 git diff | gptty ask "review this patch"
@@ -39,6 +41,8 @@ gptty export --format markdown --output conversation.md
 ## Current Features
 
 - minimal SDK-backed interactive chat through `gptty chat`
+- inspect auth data through `gptty auth status`
+- refresh `auth_data.json` through `gptty auth refresh`
 - attach existing conversations through `gptty attach`
 - send prompts to attached, explicit, or new conversations through `gptty send`
 - SDK-backed image prompts through `gptty ask --image` and `gptty send --image`
@@ -62,7 +66,7 @@ gptty export --format markdown --output conversation.md
 
 - Python 3.10+
 - system `curl` available in `PATH`
-- Chrome or Chromium for `auth_fetcher.py`
+- Chrome or Chromium for auth capture
 - valid `auth_data.json` for an existing ChatGPT web session
 
 ## Installation From Checkout
@@ -88,33 +92,46 @@ The package distribution name is planned as `gptty-web` because the PyPI name `g
 
 ## Get `auth_data.json`
 
-Fast mode for an already logged-in browser session:
+Check the current auth file without opening a browser:
 
-```cmd
-venv\Scripts\python.exe auth_fetcher.py --mode auto
+```bash
+gptty auth status
 ```
 
-Wait mode if you need time to log in or register first:
+Use JSON output for scripts:
 
-```cmd
-venv\Scripts\python.exe auth_fetcher.py --mode wait
+```bash
+gptty auth status --format json
+```
+
+Refresh auth data through the CLI wrapper:
+
+```bash
+gptty auth refresh --mode wait
+```
+
+Fast mode for an already logged-in browser session:
+
+```bash
+gptty auth refresh --mode auto
 ```
 
 In `wait` mode the browser stays open until the chat is ready. After that, send any message manually in the browser to trigger auth capture.
 
 Optional: override the one-shot probe prompt used by `auto` mode:
 
-```cmd
-venv\Scripts\python.exe auth_fetcher.py --mode auto --probe-prompt "Ping"
+```bash
+gptty auth refresh --mode auto --probe-prompt "Ping"
 ```
 
-Short alias for wait mode:
+The legacy script entrypoints remain available from a checkout:
 
 ```cmd
+venv\Scripts\python.exe auth_fetcher.py --mode wait
 venv\Scripts\python.exe auth_fetcher_wait.py
 ```
 
-After a successful capture, `auth_data.json` will appear in the project directory.
+After a successful capture, `auth_data.json` will appear in the project directory. See [docs/auth.md](docs/auth.md) for lifecycle details and troubleshooting notes.
 
 ## Run the CLI
 
@@ -252,6 +269,8 @@ python main.py
 You can also override local paths:
 
 ```bash
+gptty auth status --auth ./auth_data.json
+gptty auth refresh --auth ./auth_data.json --mode wait
 gptty attach https://chatgpt.com/c/... --auth ./auth_data.json --state ./gptty_state.json
 gptty send --auth ./auth_data.json --state ./gptty_state.json "hello"
 gptty send --auth ./auth_data.json --state ./gptty_state.json --image ./screenshot.png "describe this"
@@ -288,9 +307,12 @@ Available in `gptty chat --legacy`:
 ## Notes
 
 - `auth_data.json` is the primary auth source.
+- ChatGPT web-session auth may expire after some time; in practice, expect to refresh it periodically.
+- Run `gptty auth status` when requests start failing or before long terminal sessions.
 - `.env` is optional. If present, `accessToken` is used as a fallback even when `auth_data.json` is missing, but a full `auth_data.json` remains the most compatible setup.
-- In `auto` mode, `auth_fetcher.py` sends one probe message to trigger capture. The default text is `"Hello"`, and you can override it with `--probe-prompt`.
-- In `wait` mode, `auth_fetcher.py` does not send the probe automatically. Log in or register, then send any message manually in the browser to trigger capture.
+- In `auto` mode, auth refresh sends one probe message to trigger capture. The default text is `"Hello"`, and you can override it with `--probe-prompt`.
+- In `wait` mode, auth refresh does not send the probe automatically. Log in or register, then send any message manually in the browser to trigger capture.
+- New auth captures write canonical `accessToken` plus the legacy-compatible `api_key` field.
 - Do not mix `cookies` and `api_key/accessToken` from different accounts.
 - Local state and auth files are written atomically to reduce the chance of truncated JSON after interruption.
 - If `main.py` says that `curl` is missing, install system `curl.exe` and check `curl --version`.
@@ -300,17 +322,21 @@ Available in `gptty chat --legacy`:
 - `curl` not found
   Install system `curl.exe` and make sure `curl --version` works.
 - `auth_data.json` is missing
-  Run `python auth_fetcher.py --mode wait`, complete login in the browser, then send any message in the chat window.
+  Run `gptty auth refresh --mode wait`, complete login in the browser, then send any message in the chat window.
+- Auth may be expired
+  Run `gptty auth status`. If it reports `expired`, run `gptty auth refresh --mode wait`.
+- `gptty auth refresh` says auth dependencies are missing
+  Reinstall auth dependencies with `python -m pip install -e .[auth]` from checkout, or `python -m pip install "gptty-web[auth]"` from an installed package.
 - `gptty send`, `gptty messages`, `gptty status`, or `gptty export` says there is no attached conversation
   Run `gptty attach <url-or-id>` first, pass a conversation URL/id directly to the command, or use `gptty send --new`.
 - `gptty ask --image` or `gptty send --image` says an image file does not exist
   Check the local path, or pass an `http(s)` image URL instead.
 - `ImportError: cannot import name 'nodriver'`
   Reinstall auth dependencies with `python -m pip install -e .[auth]`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
-- The wrong account opens in `auth_fetcher`
+- The wrong account opens in auth refresh
   The browser profile already contains another session. Log out there first, or use the wait mode and sign in to the intended account.
 - Requests start failing after working before
-  Your session cookies or `api_key/accessToken` may have expired. Regenerate `auth_data.json`.
+  Your session cookies or `api_key/accessToken` may have expired. Regenerate `auth_data.json` with `gptty auth refresh --mode wait`.
 - `gptty chat` starts but cannot answer
   Check that `auth_data.json` exists and the captured browser session still belongs to the same account.
 - `gptty chat --legacy` starts but cannot answer
@@ -320,4 +346,4 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. PR9 adds SDK-backed image prompts for ask/send. Later PRs will add richer pipe workflows, SDK chat `/img` parity, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. PR9 adds SDK-backed image prompts for ask/send. PR10 adds auth status/refresh UX. Later PRs will add richer pipe workflows and SDK chat `/img` parity.
