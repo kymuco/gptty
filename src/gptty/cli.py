@@ -47,6 +47,21 @@ def _add_auth_file_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_lock_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--wait-lock",
+        action="store_true",
+        help="Wait longer when the target conversation is already waiting for a reply.",
+    )
+    parser.add_argument(
+        "--lock-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="Seconds to wait for a conversation lock before failing.",
+    )
+
+
 def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     stdin_group = parser.add_mutually_exclusive_group()
     stdin_group.add_argument(
@@ -222,6 +237,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_image_options(send_parser)
     _add_session_options(send_parser)
     _add_output_format_option(send_parser)
+    _add_lock_options(send_parser)
     send_parser.add_argument(
         "--model",
         default=None,
@@ -269,6 +285,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=90,
         help="Request timeout in seconds.",
     )
+    _add_lock_options(chat_parser)
 
     attach_parser = subparsers.add_parser(
         "attach",
