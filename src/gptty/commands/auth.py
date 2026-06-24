@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from typing import Any, TextIO
 
 from ..auth_inspect import inspect_auth_file, render_auth_status
@@ -48,10 +49,17 @@ def run_auth_refresh(
             return 1
         runner = run_auth_and_save
 
+    output_file = Path(getattr(args, "auth", "auth_data.json"))
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"gptty: failed to create auth directory for {output_file}: {exc}", file=stderr)
+        return 1
+
     try:
         asyncio.run(
             runner(
-                output_file=getattr(args, "auth", "auth_data.json"),
+                output_file=str(output_file),
                 auth_timeout=getattr(args, "timeout", 120.0),
                 mode=getattr(args, "mode", "auto"),
                 ready_timeout=getattr(args, "ready_timeout", 0.0),
@@ -71,7 +79,7 @@ def run_auth_refresh(
         print(f"gptty: auth refresh failed: {exc}", file=stderr)
         return 1
 
-    print(f"gptty: auth data refreshed at {getattr(args, 'auth', 'auth_data.json')}", file=stdout)
+    print(f"gptty: auth data refreshed at {output_file}", file=stdout)
     return 0
 
 

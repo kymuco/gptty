@@ -6,17 +6,28 @@ from pathlib import Path
 
 from . import __version__
 from .io import StdinReadError, read_stdin_text
+from .profiles import ProfileError, resolve_auth_path, resolve_session_paths
+
+
+def _add_profile_option(parser: argparse.ArgumentParser, *, suppress_default: bool = True) -> None:
+    default = argparse.SUPPRESS if suppress_default else None
+    parser.add_argument(
+        "--profile",
+        default=default,
+        help="Profile name to use for this command. Overrides GPTTY_PROFILE and the active profile.",
+    )
 
 
 def _add_session_options(parser: argparse.ArgumentParser) -> None:
+    _add_profile_option(parser)
     parser.add_argument(
         "--auth",
-        default="auth_data.json",
+        default=None,
         help="Path to auth_data.json.",
     )
     parser.add_argument(
         "--state",
-        default="gptty_state.json",
+        default=None,
         help="Path to the local gptty state file.",
     )
     parser.add_argument(
@@ -28,9 +39,10 @@ def _add_session_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_auth_file_option(parser: argparse.ArgumentParser) -> None:
+    _add_profile_option(parser)
     parser.add_argument(
         "--auth",
-        default="auth_data.json",
+        default=None,
         help="Path to auth_data.json.",
     )
 
@@ -87,6 +99,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="gptty",
         description="Terminal client for existing ChatGPT web sessions.",
     )
+    _add_profile_option(parser, suppress_default=False)
     parser.add_argument(
         "--version",
         action="version",
@@ -94,6 +107,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest="command")
+
+    profile_parser = subparsers.add_parser(
+        "profile",
+        help="Manage gptty profiles and profile paths.",
+    )
+    profile_subparsers = profile_parser.add_subparsers(dest="profile_command")
+    profile_subparsers.add_parser("list", help="List available profiles.")
+    profile_subparsers.add_parser("current", help="Show the profile used by default.")
+    profile_create_parser = profile_subparsers.add_parser("create", help="Create a profile.")
+    profile_create_parser.add_argument("name", help="Profile name to create.")
+    profile_use_parser = profile_subparsers.add_parser("use", help="Set the active profile.")
+    profile_use_parser.add_argument("name", help="Profile name to use by default.")
+    profile_paths_parser = profile_subparsers.add_parser("paths", help="Show profile config/auth/state paths.")
+    profile_paths_parser.add_argument("name", nargs="?", help="Optional profile name to inspect.")
 
     auth_parser = subparsers.add_parser(
         "auth",
@@ -148,11 +175,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_stdin_options(ask_parser)
     _add_image_options(ask_parser)
-    ask_parser.add_argument(
-        "--auth",
-        default="auth_data.json",
-        help="Path to auth_data.json.",
-    )
+    _add_auth_file_option(ask_parser)
     ask_parser.add_argument(
         "--model",
         default=None,
@@ -214,6 +237,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "chat",
         help="Start an interactive SDK-backed chat loop.",
     )
+    _add_profile_option(chat_parser)
     chat_parser.add_argument(
         "--legacy",
         action="store_true",
@@ -226,7 +250,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     chat_parser.add_argument(
         "--auth",
-        default="auth_data.json",
+        default=None,
         help="Path to auth_data.json.",
     )
     chat_parser.add_argument(
@@ -328,16 +352,57 @@ def _run_legacy_chat(state_path: str | Path, auth_file: str | Path) -> int:
     return int(legacy_main.main(state_path=state_path, auth_file=auth_file))
 
 
+def _profile_arg(args: argparse.Namespace) -> str | None:
+    return getattr(args, "profile", None)
+
+
+def _apply_auth_path(args: argparse.Namespace) -> bool:
+    try:
+        resolved = resolve_auth_path(auth_file=getattr(args, "auth", None), profile=_profile_arg(args))
+    except ProfileError as exc:
+        print(f"gptty: {exc}", file=sys.stderr)
+        return False
+    args.auth = str(resolved.auth_file)
+    args.profile = resolved.profile
+    return True
+
+
+def _apply_session_paths(args: argparse.Namespace, *, state_filename: str = "gptty_state.json") -> bool:
+    try:
+        resolved = resolve_session_paths(
+            auth_file=getattr(args, "auth", None),
+            state_file=getattr(args, "state", None),
+            profile=_profile_arg(args),
+            state_filename=state_filename,
+        )
+    except ProfileError as exc:
+        print(f"gptty: {exc}", file=sys.stderr)
+        return False
+    args.auth = str(resolved.auth_file)
+    args.state = str(resolved.state_file)
+    args.profile = resolved.profile
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "profile":
+        from .commands.profile import run_profile
+
+        return run_profile(args)
 
     if args.command == "auth":
         from .commands.auth import run_auth_refresh, run_auth_status
 
         if args.auth_command == "status":
+            if not _apply_auth_path(args):
+                return 2
             return run_auth_status(args)
         if args.auth_command == "refresh":
+            if not _apply_auth_path(args):
+                return 2
             return run_auth_refresh(args)
         parser.print_help()
         return 2
@@ -345,6 +410,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "ask":
         from .commands.ask import run_ask
 
+        if not _apply_auth_path(args):
+            return 2
         try:
             stdin_text = read_stdin_text(getattr(args, "stdin_mode", "auto"))
         except StdinReadError as exc:
@@ -355,6 +422,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "send":
         from .commands.send import run_send
 
+        if not _apply_session_paths(args):
+            return 2
         try:
             stdin_text = read_stdin_text(getattr(args, "stdin_mode", "auto"))
         except StdinReadError as exc:
@@ -365,33 +434,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "attach":
         from .commands.attach import run_attach
 
+        if not _apply_session_paths(args):
+            return 2
         return run_attach(args)
 
     if args.command == "messages":
         from .commands.messages import run_messages
 
+        if not _apply_session_paths(args):
+            return 2
         return run_messages(args)
 
     if args.command == "status":
         from .commands.status import run_status
 
+        if not _apply_session_paths(args):
+            return 2
         return run_status(args)
 
     if args.command == "export":
         from .commands.export import run_export
 
+        if not _apply_session_paths(args):
+            return 2
         return run_export(args)
 
     if args.command in {None, "chat"}:
         if bool(getattr(args, "legacy", False)):
-            state_path = getattr(args, "state", None) or "webchat_state.json"
-            auth_file = getattr(args, "auth", "auth_data.json")
-            return _run_legacy_chat(state_path=state_path, auth_file=auth_file)
+            if not _apply_session_paths(args, state_filename="webchat_state.json"):
+                return 2
+            return _run_legacy_chat(state_path=args.state, auth_file=args.auth)
 
         from .commands.chat import run_chat
 
-        if getattr(args, "state", None) is None:
-            args.state = "gptty_state.json"
+        if not _apply_session_paths(args):
+            return 2
         return run_chat(args)
 
     parser.print_help()

@@ -45,6 +45,7 @@ def save_chat_state(path: str | Path, state: ChatState) -> None:
     payload = json.dumps(asdict(state), indent=2, sort_keys=True) + "\n"
 
     try:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path.write_text(payload, encoding="utf-8")
         tmp_path.replace(state_path)
     except OSError as exc:
