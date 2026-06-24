@@ -30,6 +30,10 @@ class FakeSdkClient:
         self.calls.append(("get_messages", (url_or_id,), options))
         return "messages-result"
 
+    def get_required_action(self, url_or_id: object, **options: object) -> str:
+        self.calls.append(("get_required_action", (url_or_id,), options))
+        return "required-action-result"
+
     def get_status(self, url_or_id: object, **options: object) -> str:
         self.calls.append(("get_status", (url_or_id,), options))
         return "status-result"
@@ -37,6 +41,10 @@ class FakeSdkClient:
     def wait_until_completed(self, url_or_id: object, **options: object) -> str:
         self.calls.append(("wait_until_completed", (url_or_id,), options))
         return "wait-result"
+
+
+class OldFakeSdkClient:
+    pass
 
 
 def test_gptty_client_keeps_auth_and_timeout() -> None:
@@ -96,12 +104,20 @@ def test_conversation_methods_delegate_to_sdk_client() -> None:
 
     assert client.attach_conversation("abc") == "attach-result"
     assert client.get_messages("abc", limit=5) == "messages-result"
+    assert client.get_required_action("abc") == "required-action-result"
     assert client.get_status("abc") == "status-result"
     assert client.wait_until_completed("abc", timeout=30) == "wait-result"
 
     assert sdk.calls == [
         ("attach_conversation", ("abc",), {}),
         ("get_messages", ("abc",), {"limit": 5}),
+        ("get_required_action", ("abc",), {}),
         ("get_status", ("abc",), {}),
         ("wait_until_completed", ("abc",), {"timeout": 30}),
     ]
+
+
+def test_get_required_action_returns_none_with_old_sdk_client() -> None:
+    client = GpttyClient(sdk_client=OldFakeSdkClient())
+
+    assert client.get_required_action("abc") is None
