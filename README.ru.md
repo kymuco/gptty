@@ -37,6 +37,7 @@ gptty export --format md
 ## Возможности сейчас
 
 - one-shot SDK-backed запросы через `gptty ask`
+- централизованная stdin-политика для pipe-friendly prompts
 - pipe-friendly prompts, например `git diff | gptty ask "review this patch"`
 - интерактивный terminal-chat через legacy runtime из `main.py`
 - потоковый вывод ответа в терминал
@@ -120,6 +121,20 @@ gptty ask "explain this error"
 git diff | gptty ask "review this patch"
 ```
 
+Если одновременно переданы stdin и prompt, `gptty ask` отправляет stdin как контекст, а prompt добавляет ниже под `User prompt:`.
+
+Принудительно читать stdin:
+
+```bash
+gptty ask --stdin "summarize this input"
+```
+
+Игнорировать piped stdin:
+
+```bash
+cat noisy.log | gptty ask --no-stdin "explain this from the prompt only"
+```
+
 Отключить streaming и напечатать финальный ответ:
 
 ```bash
@@ -193,4 +208,4 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. В следующих PR появятся attach существующих ChatGPT-чатов, messages/status, export, более богатые pipe-сценарии и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. В следующих PR появятся attach существующих ChatGPT-чатов, messages/status, export, более богатые pipe-сценарии и улучшенный auth UX.
