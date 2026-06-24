@@ -27,6 +27,14 @@ def _add_session_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_auth_file_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--auth",
+        default="auth_data.json",
+        help="Path to auth_data.json.",
+    )
+
+
 def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     stdin_group = parser.add_mutually_exclusive_group()
     stdin_group.add_argument(
@@ -65,6 +73,15 @@ def _add_output_format_option(parser: argparse.ArgumentParser, *, default: str =
     )
 
 
+def _add_auth_status_format_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--format",
+        choices=("plain", "json"),
+        default="plain",
+        help="Output format.",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gptty",
@@ -77,6 +94,48 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest="command")
+
+    auth_parser = subparsers.add_parser(
+        "auth",
+        help="Inspect or refresh ChatGPT web-session auth data.",
+    )
+    auth_subparsers = auth_parser.add_subparsers(dest="auth_command")
+
+    auth_status_parser = auth_subparsers.add_parser(
+        "status",
+        help="Inspect auth_data.json without opening a browser.",
+    )
+    _add_auth_file_option(auth_status_parser)
+    _add_auth_status_format_option(auth_status_parser)
+
+    auth_refresh_parser = auth_subparsers.add_parser(
+        "refresh",
+        help="Refresh auth_data.json through the browser auth capture flow.",
+    )
+    _add_auth_file_option(auth_refresh_parser)
+    auth_refresh_parser.add_argument(
+        "--mode",
+        choices=("auto", "wait"),
+        default="auto",
+        help="auto sends a probe prompt; wait lets you log in and send a message manually.",
+    )
+    auth_refresh_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="Seconds to wait for auth capture after the trigger action starts.",
+    )
+    auth_refresh_parser.add_argument(
+        "--ready-timeout",
+        type=float,
+        default=0.0,
+        help="Only for wait mode: seconds to wait for login/chat readiness. 0 waits indefinitely.",
+    )
+    auth_refresh_parser.add_argument(
+        "--probe-prompt",
+        default="Hello",
+        help="Prompt text to send once in auto mode to trigger auth capture.",
+    )
 
     ask_parser = subparsers.add_parser(
         "ask",
@@ -272,6 +331,16 @@ def _run_legacy_chat(state_path: str | Path, auth_file: str | Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "auth":
+        from .commands.auth import run_auth_refresh, run_auth_status
+
+        if args.auth_command == "status":
+            return run_auth_status(args)
+        if args.auth_command == "refresh":
+            return run_auth_refresh(args)
+        parser.print_help()
+        return 2
 
     if args.command == "ask":
         from .commands.ask import run_ask
