@@ -25,6 +25,7 @@ CLI = gptty
 ```bash
 gptty chat
 gptty ask "explain this error"
+gptty ask --image screenshot.png "describe this UI"
 git diff | gptty ask "review this patch"
 gptty attach https://chatgpt.com/c/...
 gptty send "continue from here"
@@ -40,6 +41,7 @@ gptty export --format markdown --output conversation.md
 - minimal SDK-backed interactive chat through `gptty chat`
 - attach existing conversations through `gptty attach`
 - send prompts to attached, explicit, or new conversations through `gptty send`
+- SDK-backed image prompts through `gptty ask --image` and `gptty send --image`
 - inspect attached or explicit conversations through `gptty messages` and `gptty status`
 - export attached or explicit conversations through `gptty export`
 - output modes for `messages`, `status`, `send`, and `export`: `plain`, `json`, `markdown`
@@ -146,6 +148,17 @@ Start a new conversation and store its returned conversation reference in `gptty
 gptty send --new "start a new conversation"
 ```
 
+Send image prompts through the SDK-backed commands:
+
+```bash
+gptty ask --image screenshot.png "describe this UI"
+gptty ask --image https://example.com/chart.png "summarize this chart"
+gptty send --image diagram.webp "continue with this image"
+gptty send --image before.png --image after.png "compare these images"
+```
+
+`--image` accepts local file paths, `http(s)` URLs, and data URIs. It can be used more than once. Supported SDK image formats are PNG, JPEG/JPG, GIF, and WebP.
+
 Inspect the attached conversation:
 
 ```bash
@@ -241,6 +254,7 @@ You can also override local paths:
 ```bash
 gptty attach https://chatgpt.com/c/... --auth ./auth_data.json --state ./gptty_state.json
 gptty send --auth ./auth_data.json --state ./gptty_state.json "hello"
+gptty send --auth ./auth_data.json --state ./gptty_state.json --image ./screenshot.png "describe this"
 gptty export --auth ./auth_data.json --state ./gptty_state.json --output conversation.md
 gptty chat --auth ./auth_data.json --state ./gptty_state.json
 gptty chat --legacy --auth ./auth_data.json --state ./webchat_state.json
@@ -289,6 +303,8 @@ Available in `gptty chat --legacy`:
   Run `python auth_fetcher.py --mode wait`, complete login in the browser, then send any message in the chat window.
 - `gptty send`, `gptty messages`, `gptty status`, or `gptty export` says there is no attached conversation
   Run `gptty attach <url-or-id>` first, pass a conversation URL/id directly to the command, or use `gptty send --new`.
+- `gptty ask --image` or `gptty send --image` says an image file does not exist
+  Check the local path, or pass an `http(s)` image URL instead.
 - `ImportError: cannot import name 'nodriver'`
   Reinstall auth dependencies with `python -m pip install -e .[auth]`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
 - The wrong account opens in `auth_fetcher`
@@ -304,4 +320,4 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. Later PRs will add richer pipe workflows, image prompt parity, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. PR9 adds SDK-backed image prompts for ask/send. Later PRs will add richer pipe workflows, SDK chat `/img` parity, and improved auth UX.

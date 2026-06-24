@@ -47,7 +47,7 @@ class GpttyClient:
         return ChatGPTWebClient(auth_file=self.auth_file, timeout=self.timeout)
 
     def send(self, prompt: str, **options: Any) -> Any:
-        return self._client.send(prompt, **options)
+        return self._client.send(prompt, **_sdk_send_options(options))
 
     def send_to_conversation(
         self,
@@ -55,7 +55,11 @@ class GpttyClient:
         prompt: str,
         **options: Any,
     ) -> Any:
-        return self._client.send_to_conversation(url_or_id, prompt, **options)
+        return self._client.send_to_conversation(
+            url_or_id,
+            prompt,
+            **_sdk_send_options(options),
+        )
 
     def attach_conversation(self, url_or_id: Any, **options: Any) -> Any:
         return self._client.attach_conversation(url_or_id, **options)
@@ -68,3 +72,9 @@ class GpttyClient:
 
     def wait_until_completed(self, url_or_id: Any, **options: Any) -> Any:
         return self._client.wait_until_completed(url_or_id, **options)
+
+
+def _sdk_send_options(options: dict[str, Any]) -> dict[str, Any]:
+    sdk_options = dict(options)
+    sdk_options.pop("stream", None)
+    return sdk_options

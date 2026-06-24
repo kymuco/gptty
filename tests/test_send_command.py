@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from argparse import Namespace
 from io import StringIO
+from pathlib import Path
 from typing import Any
 
 from gptty.commands.send import extract_conversation_ref, run_send
@@ -39,7 +40,7 @@ class FakeGpttyClient:
         return Response(text="reply", conversation_id=conversation_ref)
 
 
-def make_args(tmp_path, **overrides: Any) -> Namespace:
+def make_args(tmp_path: Path, **overrides: Any) -> Namespace:
     values = {
         "prompt": ["continue"],
         "stdin_mode": "auto",
@@ -51,12 +52,13 @@ def make_args(tmp_path, **overrides: Any) -> Namespace:
         "model": None,
         "no_stream": True,
         "format": "plain",
+        "image": [],
     }
     values.update(overrides)
     return Namespace(**values)
 
 
-def test_send_uses_attached_conversation_by_default(tmp_path) -> None:
+def test_send_uses_attached_conversation_by_default(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
     stdout = StringIO()
@@ -78,7 +80,7 @@ def test_send_uses_attached_conversation_by_default(tmp_path) -> None:
     assert load_chat_state(tmp_path / "gptty_state.json").current_conversation == "attached-ref"
 
 
-def test_send_to_explicit_conversation_updates_state(tmp_path) -> None:
+def test_send_to_explicit_conversation_updates_state(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     stdout = StringIO()
 
@@ -102,7 +104,93 @@ def test_send_to_explicit_conversation_updates_state(tmp_path) -> None:
     assert state.model == "gpt-4o"
 
 
-def test_send_json_format_forces_non_streaming_response(tmp_path) -> None:
+def test_send_passes_image_media_to_attached_conversation(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+    save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
+    image_path = tmp_path / "ui.png"
+    image_path.write_bytes(b"fake image")
+
+    code = run_send(
+        make_args(tmp_path, image=[str(image_path)]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls == [
+        (
+            "send_to_conversation",
+            ("attached-ref", "continue"),
+            {"stream": False, "media": [str(image_path)]},
+        ),
+    ]
+
+
+def test_send_passes_remote_image_media_to_explicit_conversation(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+
+    code = run_send(
+        make_args(
+            tmp_path,
+            to="explicit-ref",
+            image=["https://example.com/chart.webp"],
+        ),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls == [
+        (
+            "send_to_conversation",
+            ("explicit-ref", "continue"),
+            {"stream": False, "media": ["https://example.com/chart.webp"]},
+        ),
+    ]
+
+
+def test_send_passes_multiple_images_to_new_conversation(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+    first = tmp_path / "before.png"
+    second = tmp_path / "after.png"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+
+    code = run_send(
+        make_args(tmp_path, new=True, image=[str(first), str(second)]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls[0] == (
+        "send",
+        ("continue",),
+        {"stream": False, "media": [str(first), str(second)]},
+    )
+
+
+def test_send_returns_2_for_missing_local_image(tmp_path: Path) -> None:
+    FakeGpttyClient.instances.clear()
+    save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
+    stderr = StringIO()
+
+    code = run_send(
+        make_args(tmp_path, image=[str(tmp_path / "missing.png")]),
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+        stderr=stderr,
+    )
+
+    assert code == 2
+    assert FakeGpttyClient.instances == []
+    assert "image file does not exist" in stderr.getvalue()
+
+
+def test_send_json_format_forces_non_streaming_response(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
     stdout = StringIO()
@@ -124,7 +212,7 @@ def test_send_json_format_forces_non_streaming_response(tmp_path) -> None:
     }
 
 
-def test_send_markdown_format_forces_non_streaming_response(tmp_path) -> None:
+def test_send_markdown_format_forces_non_streaming_response(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
     stdout = StringIO()
@@ -143,7 +231,7 @@ def test_send_markdown_format_forces_non_streaming_response(tmp_path) -> None:
     assert stdout.getvalue() == "reply\n"
 
 
-def test_send_new_starts_new_conversation_and_saves_ref(tmp_path) -> None:
+def test_send_new_starts_new_conversation_and_saves_ref(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     stdout = StringIO()
 
@@ -163,7 +251,7 @@ def test_send_new_starts_new_conversation_and_saves_ref(tmp_path) -> None:
     assert load_chat_state(tmp_path / "gptty_state.json").current_conversation == "new-conv"
 
 
-def test_send_combines_stdin_and_prompt(tmp_path) -> None:
+def test_send_combines_stdin_and_prompt(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
 
@@ -182,7 +270,7 @@ def test_send_combines_stdin_and_prompt(tmp_path) -> None:
     )
 
 
-def test_send_returns_2_without_attached_conversation(tmp_path) -> None:
+def test_send_returns_2_without_attached_conversation(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     stderr = StringIO()
 
@@ -198,7 +286,7 @@ def test_send_returns_2_without_attached_conversation(tmp_path) -> None:
     assert "requires an attached conversation" in stderr.getvalue()
 
 
-def test_send_returns_2_for_empty_prompt(tmp_path) -> None:
+def test_send_returns_2_for_empty_prompt(tmp_path: Path) -> None:
     FakeGpttyClient.instances.clear()
     save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
     stderr = StringIO()
@@ -216,7 +304,7 @@ def test_send_returns_2_for_empty_prompt(tmp_path) -> None:
     assert "requires a prompt" in stderr.getvalue()
 
 
-def test_send_returns_1_on_state_error(tmp_path) -> None:
+def test_send_returns_1_on_state_error(tmp_path: Path) -> None:
     state_path = tmp_path / "bad_state.json"
     state_path.write_text("{", encoding="utf-8")
     stderr = StringIO()
