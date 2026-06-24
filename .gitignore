@@ -14,6 +14,7 @@ venv/
 auth_data*.json
 g4f_chats.json
 cli_state.json
+gptty_state.json
 webchat_state.json
 .env
 .env.*
