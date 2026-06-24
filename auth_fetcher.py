@@ -25,6 +25,10 @@ class AuthResult:
         self.proof_token = proof_token
         self.turnstile_token = turnstile_token
 
+    @property
+    def accessToken(self):
+        return self.api_key
+
     @classmethod
     def from_json(cls, path: str | Path):
         """Load AuthResult from a JSON file."""
@@ -35,8 +39,9 @@ class AuthResult:
         with path.open("r", encoding="utf-8") as file:
             data = json.load(file)
 
+        token = data.get("accessToken") or data.get("access_token") or data.get("api_key")
         return cls(
-            api_key=data.get("api_key"),
+            api_key=token,
             cookies=data.get("cookies"),
             headers=data.get("headers"),
             expires=data.get("expires"),
@@ -49,6 +54,7 @@ class AuthResult:
         path = Path(path)
         data = {
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "accessToken": self.api_key,
             "api_key": self.api_key,
             "cookies": self.cookies,
             "headers": self.headers,
