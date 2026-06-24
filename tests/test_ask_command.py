@@ -127,6 +127,21 @@ def test_run_ask_uses_stdin_as_prompt() -> None:
     assert client.calls[0][1] == "stdin prompt"
 
 
+def test_run_ask_combines_stdin_and_prompt_before_send() -> None:
+    FakeGpttyClient.instances.clear()
+
+    code = run_ask(
+        make_args(prompt=["review", "this"]),
+        stdin_text="diff --git",
+        client_factory=FakeGpttyClient,
+        stdout=StringIO(),
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls[0][1] == "diff --git\n\nUser prompt:\nreview this"
+
+
 def test_run_ask_returns_2_for_empty_prompt() -> None:
     stderr = StringIO()
 

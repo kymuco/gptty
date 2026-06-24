@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .io import StdinReadError, read_stdin_text
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -28,6 +29,22 @@ def _build_parser() -> argparse.ArgumentParser:
         "prompt",
         nargs="*",
         help="Prompt text. If omitted, gptty reads the prompt from piped stdin.",
+    )
+    stdin_group = ask_parser.add_mutually_exclusive_group()
+    stdin_group.add_argument(
+        "--stdin",
+        dest="stdin_mode",
+        action="store_const",
+        const="always",
+        default="auto",
+        help="Force reading stdin, even when stdin does not look piped.",
+    )
+    stdin_group.add_argument(
+        "--no-stdin",
+        dest="stdin_mode",
+        action="store_const",
+        const="never",
+        help="Ignore stdin, even when input is piped.",
     )
     ask_parser.add_argument(
         "--auth",
@@ -73,15 +90,6 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _read_piped_stdin() -> str | None:
-    try:
-        if sys.stdin is None or sys.stdin.isatty():
-            return None
-        return sys.stdin.read()
-    except OSError:
-        return None
-
-
 def _run_legacy_chat(state_path: str | Path, auth_file: str | Path) -> int:
     try:
         import main as legacy_main
@@ -103,7 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "ask":
         from .commands.ask import run_ask
 
-        return run_ask(args, stdin_text=_read_piped_stdin())
+        try:
+            stdin_text = read_stdin_text(getattr(args, "stdin_mode", "auto"))
+        except StdinReadError as exc:
+            print(f"gptty: {exc}", file=sys.stderr)
+            return 1
+        return run_ask(args, stdin_text=stdin_text)
 
     if args.command in {None, "chat"}:
         state_path = getattr(args, "state", "webchat_state.json")
