@@ -59,7 +59,7 @@ def run_auth_refresh(
     try:
         asyncio.run(
             runner(
-                output_file=output_file,
+                output_file=str(output_file),
                 auth_timeout=getattr(args, "timeout", 120.0),
                 mode=getattr(args, "mode", "auto"),
                 ready_timeout=getattr(args, "ready_timeout", 0.0),
