@@ -48,8 +48,9 @@ Issues = "https://github.com/kymuco/gptty/issues"
 gptty = "gptty.cli:main"
 
 [tool.setuptools]
-packages = ["gptty"]
+packages = ["gptty", "gptty.commands"]
 py-modules = ["main"]
 
 [tool.setuptools.package-dir]
 gptty = "src/gptty"
+"gptty.commands" = "src/gptty/commands"

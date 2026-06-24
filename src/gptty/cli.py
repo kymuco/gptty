@@ -19,6 +19,43 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest="command")
+
+    ask_parser = subparsers.add_parser(
+        "ask",
+        help="Send a one-shot prompt through the SDK-backed ChatGPT web-session client.",
+    )
+    ask_parser.add_argument(
+        "prompt",
+        nargs="*",
+        help="Prompt text. If omitted, gptty reads the prompt from piped stdin.",
+    )
+    ask_parser.add_argument(
+        "--auth",
+        default="auth_data.json",
+        help="Path to auth_data.json.",
+    )
+    ask_parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name to pass through to the SDK.",
+    )
+    ask_parser.add_argument(
+        "--no-stream",
+        action="store_true",
+        help="Wait for the full response before printing output.",
+    )
+    ask_parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="Print plain response text. Currently this is the default output mode.",
+    )
+    ask_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=90,
+        help="Request timeout in seconds.",
+    )
+
     chat_parser = subparsers.add_parser(
         "chat",
         help="Start the legacy interactive chat while the SDK-backed CLI is being migrated.",
@@ -34,6 +71,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to auth_data.json.",
     )
     return parser
+
+
+def _read_piped_stdin() -> str | None:
+    try:
+        if sys.stdin is None or sys.stdin.isatty():
+            return None
+        return sys.stdin.read()
+    except OSError:
+        return None
 
 
 def _run_legacy_chat(state_path: str | Path, auth_file: str | Path) -> int:
@@ -53,6 +99,11 @@ def _run_legacy_chat(state_path: str | Path, auth_file: str | Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "ask":
+        from .commands.ask import run_ask
+
+        return run_ask(args, stdin_text=_read_piped_stdin())
 
     if args.command in {None, "chat"}:
         state_path = getattr(args, "state", "webchat_state.json")

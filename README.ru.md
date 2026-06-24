@@ -32,10 +32,12 @@ gptty status
 gptty export --format md
 ```
 
-В PR0 подключён только переходный интерактивный режим `gptty chat`. Остальные команды будут добавляться отдельными PR.
+`gptty ask` — первая команда, которая уже работает через SDK boundary. Legacy interactive chat остаётся доступен как `gptty chat`, пока остальные части CLI переносятся отдельными PR.
 
 ## Возможности сейчас
 
+- one-shot SDK-backed запросы через `gptty ask`
+- pipe-friendly prompts, например `git diff | gptty ask "review this patch"`
 - интерактивный terminal-chat через legacy runtime из `main.py`
 - потоковый вывод ответа в терминал
 - метрики задержки: `first_token`, `last_token`, `total`
@@ -106,7 +108,25 @@ venv\Scripts\python.exe auth_fetcher_wait.py
 
 ## Запуск CLI
 
-Предпочтительная переходная команда:
+One-shot SDK-backed prompt:
+
+```bash
+gptty ask "explain this error"
+```
+
+Передать stdin в prompt:
+
+```bash
+git diff | gptty ask "review this patch"
+```
+
+Отключить streaming и напечатать финальный ответ:
+
+```bash
+gptty ask --no-stream "summarize this session"
+```
+
+Предпочтительная переходная интерактивная команда:
 
 ```bash
 gptty chat
@@ -121,6 +141,7 @@ python main.py
 Можно явно указать пути:
 
 ```bash
+gptty ask --auth ./auth_data.json --timeout 120 "hello"
 gptty chat --auth ./auth_data.json --state ./webchat_state.json
 ```
 
@@ -172,4 +193,4 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. В следующих PR backend-поведение будет переноситься на `chatgpt-web-adapter`, появятся `gptty ask`, pipe-сценарии, attach существующих ChatGPT-чатов, export и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. В следующих PR появятся attach существующих ChatGPT-чатов, messages/status, export, более богатые pipe-сценарии и улучшенный auth UX.
