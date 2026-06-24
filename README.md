@@ -32,10 +32,12 @@ gptty status
 gptty export --format md
 ```
 
-Only the legacy interactive chat entrypoint is wired in this PR0 skeleton. The remaining commands will be added in later PRs.
+`gptty ask` is the first SDK-backed command. The legacy interactive chat entrypoint remains available as `gptty chat` while the rest of the CLI is migrated in later PRs.
 
 ## Current Features
 
+- one-shot SDK-backed prompts through `gptty ask`
+- pipe-friendly prompts, for example `git diff | gptty ask "review this patch"`
 - interactive terminal chat through the legacy `main.py` runtime
 - streaming replies in the terminal
 - latency metrics: `first_token`, `last_token`, `total`
@@ -106,7 +108,25 @@ After a successful capture, `auth_data.json` will appear in the project director
 
 ## Run the CLI
 
-Preferred transitional command:
+One-shot SDK-backed prompt:
+
+```bash
+gptty ask "explain this error"
+```
+
+Pipe stdin into the prompt:
+
+```bash
+git diff | gptty ask "review this patch"
+```
+
+Disable streaming and print the final response:
+
+```bash
+gptty ask --no-stream "summarize this session"
+```
+
+Preferred transitional interactive command:
 
 ```bash
 gptty chat
@@ -121,6 +141,7 @@ python main.py
 You can also override local paths:
 
 ```bash
+gptty ask --auth ./auth_data.json --timeout 120 "hello"
 gptty chat --auth ./auth_data.json --state ./webchat_state.json
 ```
 
@@ -174,4 +195,4 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. Later PRs will move backend behavior to `chatgpt-web-adapter`, add `gptty ask`, support pipes, attach existing ChatGPT conversations, and improve export/auth workflows.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. Later PRs will add attach existing ChatGPT conversations, messages/status, export, richer pipe workflows, and improved auth UX.
