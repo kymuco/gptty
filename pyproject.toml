@@ -43,6 +43,7 @@ test = ["pytest>=8"]
 Homepage = "https://github.com/kymuco/gptty"
 Repository = "https://github.com/kymuco/gptty"
 Issues = "https://github.com/kymuco/gptty/issues"
+Changelog = "https://github.com/kymuco/gptty/blob/main/CHANGELOG.md"
 
 [project.scripts]
 gptty = "gptty.cli:main"
