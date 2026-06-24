@@ -11,7 +11,7 @@ Terminal-клиент для существующих ChatGPT web-сессий.
 
 `gptty` — новое имя и направление бывшего `webchat-openai-cli`. Проект постепенно переезжает из standalone-скрипта в terminal-native продукт поверх [`chatgpt-web-adapter`](https://github.com/kymuco/chatgpt-web-adapter).
 
-Текущая переходная версия сохраняет legacy CLI доступным, но уже добавляет package layout, команду `gptty` и SDK-backed internals.
+PyPI distribution name — `gptty-web`, потому что имя `gptty` на PyPI уже занято. Установленная команда всё равно называется `gptty`.
 
 ## Направление проекта
 
@@ -60,7 +60,6 @@ gptty export --format markdown --output conversation.md
 - legacy-запросы с изображениями через `/img` в `gptty chat --legacy`
 - режимы авторизации `auto` и `wait`
 - локализация CLI на английский и русский в legacy runtime
-- переходная команда `gptty`
 
 ## Требования
 
@@ -69,14 +68,26 @@ gptty export --format markdown --output conversation.md
 - Chrome или Chromium для захвата авторизации
 - валидный `auth_data.json` для существующей ChatGPT web-сессии
 
-## Установка из checkout
+## Установка
 
-Создать и активировать виртуальное окружение:
+Базовая установка:
+
+```bash
+python -m pip install gptty-web
+```
+
+Установка с browser auth-capture dependencies:
+
+```bash
+python -m pip install "gptty-web[auth]"
+```
+
+Из checkout для разработки:
 
 ```bash
 python -m venv .venv
 python -m pip install --upgrade pip
-python -m pip install -e .[auth]
+python -m pip install -e ".[auth,test]"
 ```
 
 В Windows `cmd.exe`:
@@ -85,10 +96,8 @@ python -m pip install -e .[auth]
 python -m venv venv
 venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-python -m pip install -e .[auth]
+python -m pip install -e ".[auth,test]"
 ```
-
-PyPI distribution name планируется как `gptty-web`, потому что имя `gptty` на PyPI уже занято. Установленная команда всё равно будет называться `gptty`.
 
 ## Получение `auth_data.json`
 
@@ -260,7 +269,7 @@ gptty ask --no-stream "summarize this session"
 gptty send --no-stream "summarize this conversation"
 ```
 
-Старый entrypoint пока поддерживается:
+Старый entrypoint пока поддерживается из checkout:
 
 ```bash
 python main.py
@@ -326,7 +335,7 @@ gptty ask --auth ./auth_data.json --timeout 120 "hello"
 - Auth может быть просрочен
   Запустите `gptty auth status`. Если команда сообщает `expired`, выполните `gptty auth refresh --mode wait`.
 - `gptty auth refresh` сообщает, что auth dependencies отсутствуют
-  Переустановите auth dependencies через `python -m pip install -e .[auth]` из checkout или `python -m pip install "gptty-web[auth]"` для установленного пакета.
+  Переустановите auth dependencies через `python -m pip install -e ".[auth]"` из checkout или `python -m pip install "gptty-web[auth]"` для установленного пакета.
 - `gptty send`, `gptty messages`, `gptty status` или `gptty export` сообщает, что нет attached conversation
   Сначала выполните `gptty attach <url-or-id>`, передайте conversation URL/id прямо в команду или используйте `gptty send --new`.
 - `gptty ask --image` или `gptty send --image` сообщает, что image file не существует
@@ -344,4 +353,6 @@ gptty ask --auth ./auth_data.json --timeout 120 "hello"
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. PR7 добавляет shared output modes для messages/status/send. PR8 добавляет conversation export. PR9 добавляет SDK-backed image prompts для ask/send. PR10 добавляет auth status/refresh UX. В следующих PR появятся более богатые pipe-сценарии и SDK chat `/img` parity.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. PR7 добавляет shared output modes для messages/status/send. PR8 добавляет conversation export. PR9 добавляет SDK-backed image prompts для ask/send. PR10 добавляет auth status/refresh UX. PR11 готовит первый release flow для `gptty-web`. В следующих PR появятся более богатые pipe-сценарии и SDK chat `/img` parity.
+
+Release details: [CHANGELOG.md](CHANGELOG.md) и [docs/release.md](docs/release.md).

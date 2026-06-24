@@ -11,7 +11,7 @@ Terminal client for existing ChatGPT web sessions.
 
 `gptty` is the successor to `webchat-openai-cli`. The project is being migrated from a standalone script into a terminal-native product powered by [`chatgpt-web-adapter`](https://github.com/kymuco/chatgpt-web-adapter).
 
-The current release line keeps the existing legacy CLI available while the new package layout, command entrypoint, and SDK-backed internals are introduced step by step.
+The package distribution name is `gptty-web` because the PyPI name `gptty` is already occupied. The installed command is still `gptty`.
 
 ## Product Direction
 
@@ -60,7 +60,6 @@ gptty export --format markdown --output conversation.md
 - legacy image prompts through `/img` in `gptty chat --legacy`
 - `auto` and `wait` auth capture modes
 - English and Russian CLI localization in the legacy runtime
-- transitional `gptty` console command
 
 ## Requirements
 
@@ -69,14 +68,26 @@ gptty export --format markdown --output conversation.md
 - Chrome or Chromium for auth capture
 - valid `auth_data.json` for an existing ChatGPT web session
 
-## Installation From Checkout
+## Installation
 
-Create and activate a virtual environment:
+Base install:
+
+```bash
+python -m pip install gptty-web
+```
+
+Install with browser auth-capture dependencies:
+
+```bash
+python -m pip install "gptty-web[auth]"
+```
+
+From checkout for development:
 
 ```bash
 python -m venv .venv
 python -m pip install --upgrade pip
-python -m pip install -e .[auth]
+python -m pip install -e ".[auth,test]"
 ```
 
 On Windows `cmd.exe`:
@@ -85,10 +96,8 @@ On Windows `cmd.exe`:
 python -m venv venv
 venv\Scripts\activate.bat
 python -m pip install --upgrade pip
-python -m pip install -e .[auth]
+python -m pip install -e ".[auth,test]"
 ```
-
-The package distribution name is planned as `gptty-web` because the PyPI name `gptty` is already occupied. The installed command remains `gptty`.
 
 ## Get `auth_data.json`
 
@@ -260,7 +269,7 @@ gptty ask --no-stream "summarize this session"
 gptty send --no-stream "summarize this conversation"
 ```
 
-Legacy entrypoint, still supported:
+Legacy entrypoint, still supported from a checkout:
 
 ```bash
 python main.py
@@ -326,13 +335,13 @@ Available in `gptty chat --legacy`:
 - Auth may be expired
   Run `gptty auth status`. If it reports `expired`, run `gptty auth refresh --mode wait`.
 - `gptty auth refresh` says auth dependencies are missing
-  Reinstall auth dependencies with `python -m pip install -e .[auth]` from checkout, or `python -m pip install "gptty-web[auth]"` from an installed package.
+  Reinstall auth dependencies with `python -m pip install -e ".[auth]"` from checkout, or `python -m pip install "gptty-web[auth]"` from an installed package.
 - `gptty send`, `gptty messages`, `gptty status`, or `gptty export` says there is no attached conversation
   Run `gptty attach <url-or-id>` first, pass a conversation URL/id directly to the command, or use `gptty send --new`.
 - `gptty ask --image` or `gptty send --image` says an image file does not exist
   Check the local path, or pass an `http(s)` image URL instead.
 - `ImportError: cannot import name 'nodriver'`
-  Reinstall auth dependencies with `python -m pip install -e .[auth]`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
+  Reinstall auth dependencies with `python -m pip install -e ".[auth]"`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
 - The wrong account opens in auth refresh
   The browser profile already contains another session. Log out there first, or use the wait mode and sign in to the intended account.
 - Requests start failing after working before
@@ -346,4 +355,6 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. PR9 adds SDK-backed image prompts for ask/send. PR10 adds auth status/refresh UX. Later PRs will add richer pipe workflows and SDK chat `/img` parity.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. PR7 adds shared output modes for messages/status/send. PR8 adds conversation export. PR9 adds SDK-backed image prompts for ask/send. PR10 adds auth status/refresh UX. PR11 prepares the first `gptty-web` release flow. Later PRs will add richer pipe workflows and SDK chat `/img` parity.
+
+See [CHANGELOG.md](CHANGELOG.md) and [docs/release.md](docs/release.md) for release details.
