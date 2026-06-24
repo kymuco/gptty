@@ -7,7 +7,9 @@ The format is intentionally lightweight. Keep entries focused on user-visible be
 ## Unreleased
 
 - feat: add profile-aware auth/state path resolution with `gptty profile` commands
+- feat: add local conversation locks for `gptty send` and `gptty chat`
 - docs: document profile usage, resolution priority, and storage paths
+- docs: document conversation lock behavior and lock wait options
 
 ## 0.1.1 - 2026-06-24
 
