@@ -16,24 +16,26 @@ from ..profiles import (
 )
 
 
-def run_profile(args: Any, *, stdout: TextIO = sys.stdout, stderr: TextIO = sys.stderr) -> int:
+def run_profile(args: Any, *, stdout: TextIO | None = None, stderr: TextIO | None = None) -> int:
+    out = stdout if stdout is not None else sys.stdout
+    err = stderr if stderr is not None else sys.stderr
     command = getattr(args, "profile_command", None)
     try:
         if command == "list":
-            return run_profile_list(stdout=stdout)
+            return run_profile_list(stdout=out)
         if command == "current":
-            return run_profile_current(stdout=stdout)
+            return run_profile_current(stdout=out)
         if command == "create":
-            return run_profile_create(args, stdout=stdout)
+            return run_profile_create(args, stdout=out)
         if command == "use":
-            return run_profile_use(args, stdout=stdout)
+            return run_profile_use(args, stdout=out)
         if command == "paths":
-            return run_profile_paths(args, stdout=stdout)
+            return run_profile_paths(args, stdout=out)
     except ProfileError as exc:
-        print(f"gptty: {exc}", file=stderr)
+        print(f"gptty: {exc}", file=err)
         return 2
 
-    print("gptty profile requires a subcommand. Use `gptty profile --help`.", file=stderr)
+    print("gptty profile requires a subcommand. Use `gptty profile --help`.", file=err)
     return 2
 
 
