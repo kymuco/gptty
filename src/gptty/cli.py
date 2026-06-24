@@ -324,6 +324,27 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_session_options(status_parser)
     _add_output_format_option(status_parser)
 
+    observe_parser = subparsers.add_parser(
+        "observe",
+        help="Show the local live status for an active gptty run.",
+    )
+    observe_parser.add_argument(
+        "url_or_id",
+        nargs="?",
+        help="Optional conversation URL or id. Defaults to the attached conversation.",
+    )
+    observe_parser.add_argument(
+        "--status-only",
+        action="store_true",
+        help="Only show run status metadata, without recent text/events.",
+    )
+    observe_parser.add_argument(
+        "--from-start",
+        action="store_true",
+        help="Show the run event text from the start instead of only recent events.",
+    )
+    _add_session_options(observe_parser)
+
     export_parser = subparsers.add_parser(
         "export",
         help="Export messages from an explicit or attached ChatGPT conversation.",
@@ -468,6 +489,13 @@ def main(argv: list[str] | None = None) -> int:
         if not _apply_session_paths(args):
             return 2
         return run_status(args)
+
+    if args.command == "observe":
+        from .commands.observe import run_observe
+
+        if not _apply_session_paths(args):
+            return 2
+        return run_observe(args)
 
     if args.command == "export":
         from .commands.export import run_export
