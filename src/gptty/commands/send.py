@@ -27,6 +27,7 @@ NO_CONVERSATION_ERROR = (
     "gptty send requires an attached conversation, `--to <url-or-id>`, or `--new`. "
     "Run `gptty attach <url-or-id>` first."
 )
+REQUIRED_ACTION_RUN_ERROR = "ChatGPT is waiting for a web UI action."
 
 CONVERSATION_REF_FIELDS = (
     "conversation_url",
@@ -156,8 +157,9 @@ def run_send(
             if recorder is not None:
                 recorder.event(
                     "required_action",
-                    message="ChatGPT is waiting for a web UI action.",
+                    message=REQUIRED_ACTION_RUN_ERROR,
                 )
+                recorder.fail(REQUIRED_ACTION_RUN_ERROR)
             return 1
 
         if stream:
