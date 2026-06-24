@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from argparse import Namespace
 from io import StringIO
 from typing import Any
@@ -33,6 +34,7 @@ def make_args(tmp_path, **overrides: Any) -> Namespace:
         "state": str(tmp_path / "gptty_state.json"),
         "auth": "auth_data.json",
         "timeout": 90,
+        "format": "plain",
     }
     values.update(overrides)
     return Namespace(**values)
@@ -53,7 +55,40 @@ def test_status_uses_explicit_ref(tmp_path) -> None:
     assert client.auth_file == "custom_auth.json"
     assert client.timeout == 12
     assert client.calls == [("get_status", ("explicit-ref",), {})]
-    assert stdout.getvalue() == "completed\n"
+    assert stdout.getvalue() == "status: completed\nconversation: explicit-ref\n"
+
+
+def test_status_supports_json_format(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    stdout = StringIO()
+
+    code = run_status(
+        make_args(tmp_path, url_or_id="explicit-ref", format="json"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    assert code == 0
+    assert json.loads(stdout.getvalue()) == {
+        "status": "completed",
+        "conversation": "explicit-ref",
+    }
+
+
+def test_status_supports_markdown_format(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    stdout = StringIO()
+
+    code = run_status(
+        make_args(tmp_path, url_or_id="explicit-ref", format="markdown"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    assert code == 0
+    assert stdout.getvalue() == (
+        "| Field | Value |\n|---|---|\n| status | completed |\n| conversation | explicit-ref |\n"
+    )
 
 
 def test_status_uses_attached_state_ref(tmp_path) -> None:
