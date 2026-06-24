@@ -46,6 +46,15 @@ def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_output_format_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--format",
+        choices=("plain", "json", "markdown"),
+        default="plain",
+        help="Output format.",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gptty",
@@ -118,6 +127,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_stdin_options(send_parser)
     _add_session_options(send_parser)
+    _add_output_format_option(send_parser)
     send_parser.add_argument(
         "--model",
         default=None,
@@ -188,6 +198,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Limit output to the last N messages when supported by the SDK.",
     )
     _add_session_options(messages_parser)
+    _add_output_format_option(messages_parser)
 
     status_parser = subparsers.add_parser(
         "status",
@@ -199,6 +210,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional conversation URL or id. Defaults to the attached conversation.",
     )
     _add_session_options(status_parser)
+    _add_output_format_option(status_parser)
 
     return parser
 
