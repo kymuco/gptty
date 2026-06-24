@@ -15,6 +15,11 @@ class Response:
     conversation_id = "conv-1"
 
 
+class EmptyResponse:
+    text = ""
+    conversation_id = "conv-1"
+
+
 class FakeGpttyClient:
     instances: list["FakeGpttyClient"] = []
 
@@ -28,6 +33,21 @@ class FakeGpttyClient:
         if on_token is not None:
             on_token("hello")
         return Response()
+
+
+class FakeRequiredActionClient:
+    def __init__(self, auth_file: str = "auth_data.json", timeout: int = 90) -> None:
+        pass
+
+    def send_to_conversation(self, conversation_ref: str, prompt: str, **options: Any) -> EmptyResponse:
+        return EmptyResponse()
+
+    def get_required_action(self, conversation_ref: str) -> dict[str, object]:
+        return {
+            "type": "connector_oauth",
+            "reason": "Connect Gmail",
+            "actions": ["connect", "not_now"],
+        }
 
 
 def make_args(tmp_path: Path, **overrides: Any) -> Namespace:
@@ -75,3 +95,32 @@ def test_send_writes_run_events_for_attached_conversation(tmp_path: Path) -> Non
         "completed",
     ]
     assert events[3]["text"] == "hello"
+
+
+def test_send_marks_required_action_run_as_failed(tmp_path: Path) -> None:
+    state_path = tmp_path / "gptty_state.json"
+    save_chat_state(state_path, ChatState(current_conversation="conv-1"))
+    stderr = StringIO()
+
+    code = run_send(
+        make_args(tmp_path),
+        client_factory=FakeRequiredActionClient,
+        stdout=StringIO(),
+        stderr=stderr,
+    )
+
+    assert code == 1
+    run_files = list((tmp_path / ".gptty_runs").glob("*.json"))
+    assert len(run_files) == 1
+    summary = read_run_summary(run_files[0])
+    events = read_run_events(summary["events_file"], from_start=True)
+    assert summary["status"] == "failed"
+    assert summary["error"] == "ChatGPT is waiting for a web UI action."
+    assert [event["type"] for event in events] == [
+        "run_started",
+        "prompt_sent",
+        "waiting_for_reply",
+        "required_action",
+        "failed",
+    ]
+    assert "requires a web UI action" in stderr.getvalue()
