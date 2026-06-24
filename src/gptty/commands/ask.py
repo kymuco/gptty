@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable
 from typing import Any, TextIO
 
+from ..media import MediaInputError, collect_media_inputs
 from ..prompt import build_prompt
 from ..sdk_client import GpttyClient
 
@@ -20,11 +21,19 @@ def _response_text(response: Any) -> str:
     return str(response)
 
 
-def _build_send_options(args: Any, *, stream: bool, on_token: Callable[[str], None] | None) -> dict[str, Any]:
+def _build_send_options(
+    args: Any,
+    *,
+    stream: bool,
+    media: list[str] | None,
+    on_token: Callable[[str], None] | None,
+) -> dict[str, Any]:
     options: dict[str, Any] = {"stream": stream}
     model = getattr(args, "model", None)
     if model:
         options["model"] = model
+    if media:
+        options["media"] = media
     if on_token is not None:
         options["on_token"] = on_token
     return options
@@ -44,6 +53,12 @@ def run_ask(
         print(EMPTY_PROMPT_ERROR, file=stderr)
         return 2
 
+    try:
+        media = collect_media_inputs(args)
+    except MediaInputError as exc:
+        print(f"gptty: {exc}", file=stderr)
+        return 2
+
     stream = not bool(getattr(args, "no_stream", False))
     saw_stream_token = False
 
@@ -61,6 +76,7 @@ def run_ask(
         **_build_send_options(
             args,
             stream=stream,
+            media=media,
             on_token=on_token if stream else None,
         ),
     )
