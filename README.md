@@ -27,17 +27,19 @@ gptty chat
 gptty ask "explain this error"
 git diff | gptty ask "review this patch"
 gptty attach https://chatgpt.com/c/...
+gptty send "continue from here"
 gptty messages --last 5
 gptty status
 gptty export --format md
 ```
 
-`gptty ask`, the default `gptty chat` path, and conversation inspection commands are SDK-backed. The legacy interactive runtime remains available through `gptty chat --legacy` while feature parity is migrated in later PRs.
+`gptty ask`, `gptty send`, the default `gptty chat` path, and conversation inspection commands are SDK-backed. The legacy interactive runtime remains available through `gptty chat --legacy` while feature parity is migrated in later PRs.
 
 ## Current Features
 
 - minimal SDK-backed interactive chat through `gptty chat`
 - attach existing conversations through `gptty attach`
+- send prompts to attached, explicit, or new conversations through `gptty send`
 - inspect attached or explicit conversations through `gptty messages` and `gptty status`
 - legacy interactive chat fallback through `gptty chat --legacy`
 - one-shot SDK-backed prompts through `gptty ask`
@@ -118,6 +120,30 @@ Attach an existing ChatGPT conversation:
 gptty attach https://chatgpt.com/c/...
 ```
 
+Send a prompt to the attached conversation:
+
+```bash
+gptty send "continue from here"
+```
+
+Pipe stdin into the attached conversation:
+
+```bash
+git diff | gptty send "review this patch"
+```
+
+Send to an explicit conversation without changing first through `attach`:
+
+```bash
+gptty send --to https://chatgpt.com/c/... "continue there"
+```
+
+Start a new conversation and store its returned conversation reference in `gptty_state.json`:
+
+```bash
+gptty send --new "start a new conversation"
+```
+
 Inspect the attached conversation:
 
 ```bash
@@ -165,7 +191,7 @@ Pipe stdin into the prompt:
 git diff | gptty ask "review this patch"
 ```
 
-When stdin and a prompt are both present, `gptty ask` sends stdin as context, followed by the prompt under `User prompt:`.
+When stdin and a prompt are both present, `gptty ask` and `gptty send` send stdin as context, followed by the prompt under `User prompt:`.
 
 Force reading stdin:
 
@@ -183,6 +209,7 @@ Disable streaming and print the final response:
 
 ```bash
 gptty ask --no-stream "summarize this session"
+gptty send --no-stream "summarize this conversation"
 ```
 
 Legacy entrypoint, still supported:
@@ -195,6 +222,7 @@ You can also override local paths:
 
 ```bash
 gptty attach https://chatgpt.com/c/... --auth ./auth_data.json --state ./gptty_state.json
+gptty send --auth ./auth_data.json --state ./gptty_state.json "hello"
 gptty chat --auth ./auth_data.json --state ./gptty_state.json
 gptty chat --legacy --auth ./auth_data.json --state ./webchat_state.json
 gptty ask --auth ./auth_data.json --timeout 120 "hello"
@@ -240,8 +268,8 @@ Available in `gptty chat --legacy`:
   Install system `curl.exe` and make sure `curl --version` works.
 - `auth_data.json` is missing
   Run `python auth_fetcher.py --mode wait`, complete login in the browser, then send any message in the chat window.
-- `gptty messages` or `gptty status` says there is no attached conversation
-  Run `gptty attach <url-or-id>` first, or pass a conversation URL/id directly to the command.
+- `gptty send`, `gptty messages`, or `gptty status` says there is no attached conversation
+  Run `gptty attach <url-or-id>` first, pass a conversation URL/id directly to the command, or use `gptty send --new`.
 - `ImportError: cannot import name 'nodriver'`
   Reinstall auth dependencies with `python -m pip install -e .[auth]`. Recent `g4f` releases use `zendriver` instead of the older `nodriver` package name.
 - The wrong account opens in `auth_fetcher`
@@ -257,4 +285,4 @@ Available in `gptty chat --legacy`:
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. Later PRs will add send-to-attached conversation, export, richer pipe workflows, image prompt parity, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. PR4 migrates the default `gptty chat` path to a minimal SDK-backed loop with legacy fallback. PR5 adds attach/messages/status conversation operations. PR6 adds send-to-attached, explicit, and new conversation workflows. Later PRs will add export, richer pipe workflows, image prompt parity, and improved auth UX.

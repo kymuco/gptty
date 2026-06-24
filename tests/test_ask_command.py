@@ -4,7 +4,7 @@ from argparse import Namespace
 from io import StringIO
 from typing import Any
 
-from gptty.commands.ask import build_prompt, run_ask
+from gptty.commands.ask import run_ask
 
 
 class Response:
@@ -41,20 +41,6 @@ def make_args(**overrides: Any) -> Namespace:
     }
     values.update(overrides)
     return Namespace(**values)
-
-
-def test_build_prompt_from_prompt_only() -> None:
-    assert build_prompt(["explain", "this"]) == "explain this"
-
-
-def test_build_prompt_from_stdin_only() -> None:
-    assert build_prompt([], stdin_text="context from pipe\n") == "context from pipe"
-
-
-def test_build_prompt_combines_stdin_and_prompt() -> None:
-    assert build_prompt(["review", "this"], stdin_text="diff --git") == (
-        "diff --git\n\nUser prompt:\nreview this"
-    )
 
 
 def test_run_ask_non_stream_prints_response_text() -> None:

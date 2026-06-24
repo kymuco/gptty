@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any, TextIO
+
+from ..prompt import build_prompt
+from ..sdk_client import GpttyClient
+from ..state import StateError, load_chat_state, save_chat_state
+
+EMPTY_PROMPT_ERROR = "gptty send requires a prompt argument or piped stdin."
+NO_CONVERSATION_ERROR = (
+    "gptty send requires an attached conversation, `--to <url-or-id>`, or `--new`. "
+    "Run `gptty attach <url-or-id>` first."
+)
+
+CONVERSATION_REF_FIELDS = (
+    "conversation_url",
+    "conversation_id",
+    "conversation_ref",
+    "url",
+    "id",
+)
+
+
+def run_send(
+    args: Any,
+    *,
+    stdin_text: str | None = None,
+    client_factory: Callable[..., Any] = GpttyClient,
+    stdout: TextIO = sys.stdout,
+    stderr: TextIO = sys.stderr,
+) -> int:
+    try:
+        prompt = build_prompt(getattr(args, "prompt", []), stdin_text=stdin_text)
+    except ValueError:
+        print(EMPTY_PROMPT_ERROR, file=stderr)
+        return 2
+
+    state_path = Path(getattr(args, "state", "gptty_state.json"))
+    try:
+        state = load_chat_state(state_path)
+    except StateError as exc:
+        print(f"gptty: {exc}", file=stderr)
+        return 1
+
+    explicit_ref = getattr(args, "to", None)
+    start_new = bool(getattr(args, "new", False))
+    conversation_ref = None if start_new else explicit_ref or state.current_conversation
+
+    if not start_new and not conversation_ref:
+        print(NO_CONVERSATION_ERROR, file=stderr)
+        return 2
+
+    stream = not bool(getattr(args, "no_stream", False))
+    saw_stream_token = False
+
+    def on_token(token: str) -> None:
+        nonlocal saw_stream_token
+        saw_stream_token = True
+        print(token, end="", file=stdout, flush=True)
+
+    options: dict[str, Any] = {"stream": stream}
+    model = getattr(args, "model", None)
+    if model:
+        options["model"] = model
+    if stream:
+        options["on_token"] = on_token
+
+    client = client_factory(
+        auth_file=getattr(args, "auth", "auth_data.json"),
+        timeout=getattr(args, "timeout", 90),
+    )
+
+    try:
+        if start_new:
+            response = client.send(prompt, **options)
+        else:
+            response = client.send_to_conversation(conversation_ref, prompt, **options)
+    except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
+        print(f"gptty: send request failed: {exc}", file=stderr)
+        return 1
+
+    if stream:
+        if saw_stream_token:
+            print(file=stdout)
+        else:
+            print(response_text(response), file=stdout)
+    else:
+        print(response_text(response), file=stdout)
+
+    updated_ref = extract_conversation_ref(response, fallback=conversation_ref)
+    if updated_ref and updated_ref != state.current_conversation:
+        state.current_conversation = updated_ref
+        if model:
+            state.model = model
+        try:
+            save_chat_state(state_path, state)
+        except StateError as exc:
+            print(f"gptty: {exc}", file=stderr)
+            return 1
+    elif model and model != state.model:
+        state.model = model
+        try:
+            save_chat_state(state_path, state)
+        except StateError as exc:
+            print(f"gptty: {exc}", file=stderr)
+            return 1
+
+    return 0
+
+
+def extract_conversation_ref(response: Any, fallback: Any = None) -> str | None:
+    if isinstance(response, dict):
+        for field in CONVERSATION_REF_FIELDS:
+            value = response.get(field)
+            if value:
+                return str(value)
+
+    for field in CONVERSATION_REF_FIELDS:
+        value = getattr(response, field, None)
+        if value:
+            return str(value)
+
+    if fallback:
+        return str(fallback)
+    return None
+
+
+def response_text(response: Any) -> str:
+    text = getattr(response, "text", None)
+    if text is not None:
+        return str(text)
+    if isinstance(response, dict):
+        for field in ("text", "message", "content"):
+            value = response.get(field)
+            if value is not None:
+                return str(value)
+    if response is None:
+        return ""
+    return str(response)

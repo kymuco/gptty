@@ -1,26 +1,14 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Any, TextIO
 
+from ..prompt import build_prompt
 from ..sdk_client import GpttyClient
 
 
 EMPTY_PROMPT_ERROR = "gptty ask requires a prompt argument or piped stdin."
-
-
-def build_prompt(prompt_parts: Sequence[str], stdin_text: str | None = None) -> str:
-    prompt = " ".join(part for part in prompt_parts if part).strip()
-    context = (stdin_text or "").strip()
-
-    if context and prompt:
-        return f"{context}\n\nUser prompt:\n{prompt}"
-    if context:
-        return context
-    if prompt:
-        return prompt
-    raise ValueError(EMPTY_PROMPT_ERROR)
 
 
 def _response_text(response: Any) -> str:
@@ -52,8 +40,8 @@ def run_ask(
 ) -> int:
     try:
         prompt = build_prompt(getattr(args, "prompt", []), stdin_text=stdin_text)
-    except ValueError as exc:
-        print(str(exc), file=stderr)
+    except ValueError:
+        print(EMPTY_PROMPT_ERROR, file=stderr)
         return 2
 
     stream = not bool(getattr(args, "no_stream", False))

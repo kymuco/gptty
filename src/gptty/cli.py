@@ -27,6 +27,25 @@ def _add_session_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
+    stdin_group = parser.add_mutually_exclusive_group()
+    stdin_group.add_argument(
+        "--stdin",
+        dest="stdin_mode",
+        action="store_const",
+        const="always",
+        default="auto",
+        help="Force reading stdin, even when stdin does not look piped.",
+    )
+    stdin_group.add_argument(
+        "--no-stdin",
+        dest="stdin_mode",
+        action="store_const",
+        const="never",
+        help="Ignore stdin, even when input is piped.",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gptty",
@@ -49,22 +68,7 @@ def _build_parser() -> argparse.ArgumentParser:
         nargs="*",
         help="Prompt text. If omitted, gptty reads the prompt from piped stdin.",
     )
-    stdin_group = ask_parser.add_mutually_exclusive_group()
-    stdin_group.add_argument(
-        "--stdin",
-        dest="stdin_mode",
-        action="store_const",
-        const="always",
-        default="auto",
-        help="Force reading stdin, even when stdin does not look piped.",
-    )
-    stdin_group.add_argument(
-        "--no-stdin",
-        dest="stdin_mode",
-        action="store_const",
-        const="never",
-        help="Ignore stdin, even when input is piped.",
-    )
+    _add_stdin_options(ask_parser)
     ask_parser.add_argument(
         "--auth",
         default="auth_data.json",
@@ -90,6 +94,39 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=90,
         help="Request timeout in seconds.",
+    )
+
+    send_parser = subparsers.add_parser(
+        "send",
+        help="Send a prompt to the attached conversation, an explicit conversation, or a new chat.",
+    )
+    send_parser.add_argument(
+        "prompt",
+        nargs="*",
+        help="Prompt text. If omitted, gptty reads the prompt from piped stdin.",
+    )
+    destination_group = send_parser.add_mutually_exclusive_group()
+    destination_group.add_argument(
+        "--to",
+        default=None,
+        help="Conversation URL or id to send to instead of the attached conversation.",
+    )
+    destination_group.add_argument(
+        "--new",
+        action="store_true",
+        help="Start a new conversation instead of using an attached conversation.",
+    )
+    _add_stdin_options(send_parser)
+    _add_session_options(send_parser)
+    send_parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name to pass through to the SDK and store in state.",
+    )
+    send_parser.add_argument(
+        "--no-stream",
+        action="store_true",
+        help="Wait for the full response before printing output.",
     )
 
     chat_parser = subparsers.add_parser(
@@ -193,6 +230,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"gptty: {exc}", file=sys.stderr)
             return 1
         return run_ask(args, stdin_text=stdin_text)
+
+    if args.command == "send":
+        from .commands.send import run_send
+
+        try:
+            stdin_text = read_stdin_text(getattr(args, "stdin_mode", "auto"))
+        except StdinReadError as exc:
+            print(f"gptty: {exc}", file=sys.stderr)
+            return 1
+        return run_send(args, stdin_text=stdin_text)
 
     if args.command == "attach":
         from .commands.attach import run_attach
