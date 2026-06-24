@@ -8,6 +8,7 @@ from typing import Any, TextIO
 from ..media import MediaInputError, collect_media_inputs
 from ..output import OutputFormat, normalize_response, render_response
 from ..prompt import build_prompt
+from ..required_action import maybe_render_required_action
 from ..sdk_client import GpttyClient
 from ..state import StateError, load_chat_state, save_chat_state
 
@@ -94,14 +95,23 @@ def run_send(
         return 1
 
     updated_ref = extract_conversation_ref(response, fallback=conversation_ref)
+    normalized = normalize_response(response, conversation=updated_ref)
+    response_text_value = normalized.get("text", "")
+    if not saw_stream_token and not response_text_value and maybe_render_required_action(
+        client,
+        response,
+        stderr=stderr,
+        fallback_conversation=updated_ref,
+    ):
+        return 1
 
     if stream:
         if saw_stream_token:
             print(file=stdout)
         else:
-            print(render_response(normalize_response(response, conversation=updated_ref), "plain"), file=stdout)
+            print(render_response(normalized, "plain"), file=stdout)
     else:
-        print(render_response(normalize_response(response, conversation=updated_ref), output_format), file=stdout)
+        print(render_response(normalized, output_format), file=stdout)
 
     if updated_ref and updated_ref != state.current_conversation:
         state.current_conversation = updated_ref
