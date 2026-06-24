@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from argparse import Namespace
 from io import StringIO
 from typing import Any
@@ -49,6 +50,7 @@ def make_args(tmp_path, **overrides: Any) -> Namespace:
         "timeout": 90,
         "model": None,
         "no_stream": True,
+        "format": "plain",
     }
     values.update(overrides)
     return Namespace(**values)
@@ -98,6 +100,47 @@ def test_send_to_explicit_conversation_updates_state(tmp_path) -> None:
     ]
     assert state.current_conversation == "explicit-ref"
     assert state.model == "gpt-4o"
+
+
+def test_send_json_format_forces_non_streaming_response(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
+    stdout = StringIO()
+
+    code = run_send(
+        make_args(tmp_path, no_stream=False, format="json"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls == [
+        ("send_to_conversation", ("attached-ref", "continue"), {"stream": False}),
+    ]
+    assert json.loads(stdout.getvalue()) == {
+        "text": "reply",
+        "conversation": "attached-ref",
+    }
+
+
+def test_send_markdown_format_forces_non_streaming_response(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    save_chat_state(tmp_path / "gptty_state.json", ChatState(current_conversation="attached-ref"))
+    stdout = StringIO()
+
+    code = run_send(
+        make_args(tmp_path, no_stream=False, format="markdown"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    client = FakeGpttyClient.instances[0]
+    assert code == 0
+    assert client.calls == [
+        ("send_to_conversation", ("attached-ref", "continue"), {"stream": False}),
+    ]
+    assert stdout.getvalue() == "reply\n"
 
 
 def test_send_new_starts_new_conversation_and_saves_ref(tmp_path) -> None:
