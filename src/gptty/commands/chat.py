@@ -5,6 +5,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..locks import (
+    DEFAULT_LOCK_TIMEOUT_SECONDS,
+    ConversationLockError,
+    acquire_conversation_lock,
+    conversation_lock_dir,
+    render_lock_error,
+    render_lock_timeout,
+    render_stale_lock_recovered,
+)
 from ..sdk_client import GpttyClient
 from ..state import ChatState, StateError, load_chat_state, save_chat_state
 
@@ -114,9 +123,12 @@ def run_chat(
             client,
             state=state,
             state_path=state_path,
+            profile=getattr(args, "profile", None),
             prompt=prompt,
             model=state.model,
             stream=not bool(getattr(args, "no_stream", False)),
+            lock_timeout=_lock_timeout(args),
+            explicit_lock_wait=bool(getattr(args, "wait_lock", False)) or getattr(args, "lock_timeout", None) is not None,
             stdout=stdout,
             stderr=stderr,
         )
@@ -156,9 +168,12 @@ def _send_chat_prompt(
     *,
     state: ChatState,
     state_path: Path,
+    profile: str | None,
     prompt: str,
     model: str | None,
     stream: bool,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT_SECONDS,
+    explicit_lock_wait: bool = False,
     stdout: TextIO,
     stderr: TextIO,
 ) -> int:
@@ -175,33 +190,65 @@ def _send_chat_prompt(
     if stream:
         options["on_token"] = on_token
 
-    try:
-        if state.current_conversation:
-            response = client.send_to_conversation(state.current_conversation, prompt, **options)
-        else:
-            response = client.send(prompt, **options)
-    except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
-        print(f"gptty: chat request failed: {exc}", file=stderr)
-        return 1
-
-    if stream:
-        if saw_stream_token:
-            print(file=stdout)
-        else:
-            print(response_text(response), file=stdout)
-    else:
-        print(response_text(response), file=stdout)
-
-    conversation_ref = extract_conversation_ref(response)
-    if conversation_ref and conversation_ref != state.current_conversation:
-        state.current_conversation = conversation_ref
+    lock = None
+    if state.current_conversation:
+        lock_dir = conversation_lock_dir(profile=profile, state_path=state_path)
         try:
-            save_chat_state(state_path, state)
-        except StateError as exc:
-            print(f"gptty: {exc}", file=stderr)
+            lock = acquire_conversation_lock(
+                conversation_ref=state.current_conversation,
+                lock_dir=lock_dir,
+                profile=profile,
+                command="chat",
+                timeout=lock_timeout,
+            )
+        except ConversationLockError as exc:
+            if explicit_lock_wait:
+                render_lock_timeout(exc, stderr=stderr)
+            else:
+                render_lock_error(exc, stderr=stderr)
+            return 2
+        render_stale_lock_recovered(lock, stderr=stderr)
+
+    try:
+        try:
+            if state.current_conversation:
+                response = client.send_to_conversation(state.current_conversation, prompt, **options)
+            else:
+                response = client.send(prompt, **options)
+        except Exception as exc:  # noqa: BLE001 - command boundary converts SDK errors to exit codes.
+            print(f"gptty: chat request failed: {exc}", file=stderr)
             return 1
 
-    return 0
+        if stream:
+            if saw_stream_token:
+                print(file=stdout)
+            else:
+                print(response_text(response), file=stdout)
+        else:
+            print(response_text(response), file=stdout)
+
+        conversation_ref = extract_conversation_ref(response)
+        if conversation_ref and conversation_ref != state.current_conversation:
+            state.current_conversation = conversation_ref
+            try:
+                save_chat_state(state_path, state)
+            except StateError as exc:
+                print(f"gptty: {exc}", file=stderr)
+                return 1
+
+        return 0
+    finally:
+        if lock is not None:
+            lock.release()
+
+
+def _lock_timeout(args: Any) -> float:
+    value = getattr(args, "lock_timeout", None)
+    if value is not None:
+        return max(0.0, float(value))
+    if bool(getattr(args, "wait_lock", False)):
+        return 120.0
+    return DEFAULT_LOCK_TIMEOUT_SECONDS
 
 
 def _is_interactive(input_stream: TextIO) -> bool:
