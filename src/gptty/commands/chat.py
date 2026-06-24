@@ -77,10 +77,7 @@ def run_chat(
             print(f"gptty: {exc}", file=stderr)
             return 1
 
-    client = client_factory(
-        auth_file=getattr(args, "auth", "auth_data.json"),
-        timeout=getattr(args, "timeout", 90),
-    )
+    client: Any | None = None
     interactive = _is_interactive(input_stream)
 
     while True:
@@ -108,6 +105,11 @@ def run_chat(
                 return result
             continue
 
+        if client is None:
+            client = client_factory(
+                auth_file=getattr(args, "auth", "auth_data.json"),
+                timeout=getattr(args, "timeout", 90),
+            )
         code = _send_chat_prompt(
             client,
             state=state,
