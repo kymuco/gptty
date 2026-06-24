@@ -75,17 +75,38 @@ def _build_parser() -> argparse.ArgumentParser:
 
     chat_parser = subparsers.add_parser(
         "chat",
-        help="Start the legacy interactive chat while the SDK-backed CLI is being migrated.",
+        help="Start an interactive SDK-backed chat loop.",
+    )
+    chat_parser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Run the legacy main.py interactive chat runtime.",
     )
     chat_parser.add_argument(
         "--state",
-        default="webchat_state.json",
+        default=None,
         help="Path to the local chat state file.",
     )
     chat_parser.add_argument(
         "--auth",
         default="auth_data.json",
         help="Path to auth_data.json.",
+    )
+    chat_parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name to store in state and pass through to the SDK.",
+    )
+    chat_parser.add_argument(
+        "--no-stream",
+        action="store_true",
+        help="Wait for each full response before printing output.",
+    )
+    chat_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=90,
+        help="Request timeout in seconds.",
     )
     return parser
 
@@ -119,9 +140,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_ask(args, stdin_text=stdin_text)
 
     if args.command in {None, "chat"}:
-        state_path = getattr(args, "state", "webchat_state.json")
-        auth_file = getattr(args, "auth", "auth_data.json")
-        return _run_legacy_chat(state_path=state_path, auth_file=auth_file)
+        if bool(getattr(args, "legacy", False)):
+            state_path = getattr(args, "state", None) or "webchat_state.json"
+            auth_file = getattr(args, "auth", "auth_data.json")
+            return _run_legacy_chat(state_path=state_path, auth_file=auth_file)
+
+        from .commands.chat import run_chat
+
+        if getattr(args, "state", None) is None:
+            args.state = "gptty_state.json"
+        return run_chat(args)
 
     parser.print_help()
     return 2
