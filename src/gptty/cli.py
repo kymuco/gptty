@@ -46,11 +46,11 @@ def _add_stdin_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_output_format_option(parser: argparse.ArgumentParser) -> None:
+def _add_output_format_option(parser: argparse.ArgumentParser, *, default: str = "plain") -> None:
     parser.add_argument(
         "--format",
         choices=("plain", "json", "markdown"),
-        default="plain",
+        default=default,
         help="Output format.",
     )
 
@@ -212,6 +212,34 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_session_options(status_parser)
     _add_output_format_option(status_parser)
 
+    export_parser = subparsers.add_parser(
+        "export",
+        help="Export messages from an explicit or attached ChatGPT conversation.",
+    )
+    export_parser.add_argument(
+        "url_or_id",
+        nargs="?",
+        help="Optional conversation URL or id. Defaults to the attached conversation.",
+    )
+    export_parser.add_argument(
+        "--last",
+        type=int,
+        default=None,
+        help="Limit export to the last N messages when supported by the SDK.",
+    )
+    export_parser.add_argument(
+        "--output",
+        default=None,
+        help="Write export to a file instead of stdout.",
+    )
+    export_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite --output if it already exists.",
+    )
+    _add_session_options(export_parser)
+    _add_output_format_option(export_parser, default="markdown")
+
     return parser
 
 
@@ -267,6 +295,11 @@ def main(argv: list[str] | None = None) -> int:
         from .commands.status import run_status
 
         return run_status(args)
+
+    if args.command == "export":
+        from .commands.export import run_export
+
+        return run_export(args)
 
     if args.command in {None, "chat"}:
         if bool(getattr(args, "legacy", False)):

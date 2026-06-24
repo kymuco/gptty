@@ -30,10 +30,10 @@ gptty attach https://chatgpt.com/c/...
 gptty send "continue from here"
 gptty messages --last 5 --format markdown
 gptty status --format json
-gptty export --format md
+gptty export --format markdown --output conversation.md
 ```
 
-`gptty ask`, `gptty send`, default `gptty chat` и команды inspection для conversation уже работают через SDK boundary. Legacy interactive runtime остаётся доступен через `gptty chat --legacy`, пока feature parity переносится отдельными PR.
+`gptty ask`, `gptty send`, default `gptty chat`, команды inspection для conversation и export уже работают через SDK boundary. Legacy interactive runtime остаётся доступен через `gptty chat --legacy`, пока feature parity переносится отдельными PR.
 
 ## Возможности сейчас
 
@@ -41,7 +41,8 @@ gptty export --format md
 - attach существующих conversations через `gptty attach`
 - отправка prompt в attached, explicit или новый conversation через `gptty send`
 - просмотр attached или explicit conversations через `gptty messages` и `gptty status`
-- output modes для `messages`, `status` и `send`: `plain`, `json`, `markdown`
+- export attached или explicit conversations через `gptty export`
+- output modes для `messages`, `status`, `send` и `export`: `plain`, `json`, `markdown`
 - legacy interactive chat fallback через `gptty chat --legacy`
 - one-shot SDK-backed запросы через `gptty ask`
 - централизованная stdin-политика для pipe-friendly prompts
@@ -159,16 +160,21 @@ gptty messages --last 5 --format json
 gptty messages --last 5 --format markdown
 gptty status --format json
 gptty send --format json "summarize the current thread"
+gptty export --format markdown --output conversation.md
+gptty export --format json --output conversation.json
 ```
 
 Когда `gptty send` используется с `--format json` или `--format markdown`, streaming отключается внутри команды, чтобы output оставался полным и пригодным для парсинга.
 
-Можно смотреть explicit conversation без attach:
+Можно смотреть или экспортировать explicit conversation без attach:
 
 ```bash
 gptty messages https://chatgpt.com/c/... --last 5
 gptty status https://chatgpt.com/c/...
+gptty export https://chatgpt.com/c/... --last 20 --output conversation.md
 ```
+
+`gptty export` по умолчанию выводит Markdown. Если `--output` указывает на существующий файл, добавьте `--overwrite`, чтобы заменить его.
 
 Минимальный SDK-backed interactive chat:
 
@@ -235,6 +241,7 @@ python main.py
 ```bash
 gptty attach https://chatgpt.com/c/... --auth ./auth_data.json --state ./gptty_state.json
 gptty send --auth ./auth_data.json --state ./gptty_state.json "hello"
+gptty export --auth ./auth_data.json --state ./gptty_state.json --output conversation.md
 gptty chat --auth ./auth_data.json --state ./gptty_state.json
 gptty chat --legacy --auth ./auth_data.json --state ./webchat_state.json
 gptty ask --auth ./auth_data.json --timeout 120 "hello"
@@ -280,7 +287,7 @@ gptty ask --auth ./auth_data.json --timeout 120 "hello"
   Установите системный `curl.exe` и проверьте, что команда `curl --version` работает.
 - Отсутствует `auth_data.json`
   Запустите `python auth_fetcher.py --mode wait`, завершите вход в браузере, затем отправьте любое сообщение в окне чата.
-- `gptty send`, `gptty messages` или `gptty status` сообщает, что нет attached conversation
+- `gptty send`, `gptty messages`, `gptty status` или `gptty export` сообщает, что нет attached conversation
   Сначала выполните `gptty attach <url-or-id>`, передайте conversation URL/id прямо в команду или используйте `gptty send --new`.
 - В `auth_fetcher` открывается не тот аккаунт
   В используемом браузерном профиле уже сохранена другая сессия. Выйдите из неё или используйте wait-режим и войдите в нужный аккаунт.
@@ -295,4 +302,4 @@ gptty ask --auth ./auth_data.json --timeout 120 "hello"
 
 Репозиторий находится в переходе от `webchat-openai-cli` к `gptty`.
 
-PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. PR7 добавляет shared output modes для messages/status/send. В следующих PR появятся export, более богатые pipe-сценарии, image prompt parity и улучшенный auth UX.
+PR0 закладывает package skeleton и console command. PR1 добавляет SDK client boundary. PR2 добавляет первую SDK-backed команду, `gptty ask`. PR3 централизует stdin pipe handling. PR4 переносит default `gptty chat` на минимальный SDK-backed loop с legacy fallback. PR5 добавляет attach/messages/status conversation operations. PR6 добавляет отправку в attached, explicit и новый conversation. PR7 добавляет shared output modes для messages/status/send. PR8 добавляет conversation export. В следующих PR появятся более богатые pipe-сценарии, image prompt parity и улучшенный auth UX.

@@ -7,6 +7,7 @@ import pytest
 import gptty.commands.ask as ask_command
 import gptty.commands.attach as attach_command
 import gptty.commands.chat as chat_command
+import gptty.commands.export as export_command
 import gptty.commands.messages as messages_command
 import gptty.commands.send as send_command
 import gptty.commands.status as status_command
@@ -288,6 +289,64 @@ def test_messages_routes_to_messages_command(monkeypatch: pytest.MonkeyPatch) ->
         "state": "state.json",
         "format": "markdown",
     }
+
+
+def test_export_routes_to_export_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_run_export(args: Any) -> int:
+        calls["url_or_id"] = args.url_or_id
+        calls["last"] = args.last
+        calls["state"] = args.state
+        calls["auth"] = args.auth
+        calls["timeout"] = args.timeout
+        calls["format"] = args.format
+        calls["output"] = args.output
+        calls["overwrite"] = args.overwrite
+        return 0
+
+    monkeypatch.setattr(export_command, "run_export", fake_run_export)
+
+    assert cli.main([
+        "export",
+        "abc",
+        "--last",
+        "5",
+        "--state",
+        "state.json",
+        "--auth",
+        "auth.json",
+        "--timeout",
+        "12",
+        "--format",
+        "json",
+        "--output",
+        "conversation.json",
+        "--overwrite",
+    ]) == 0
+    assert calls == {
+        "url_or_id": "abc",
+        "last": 5,
+        "state": "state.json",
+        "auth": "auth.json",
+        "timeout": 12,
+        "format": "json",
+        "output": "conversation.json",
+        "overwrite": True,
+    }
+
+
+def test_export_defaults_to_markdown(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_run_export(args: Any) -> int:
+        calls["format"] = args.format
+        return 0
+
+    monkeypatch.setattr(export_command, "run_export", fake_run_export)
+
+    assert cli.main(["export"]) == 0
+    assert calls == {"format": "markdown"}
 
 
 def test_status_routes_to_status_command(monkeypatch: pytest.MonkeyPatch) -> None:
