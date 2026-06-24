@@ -112,6 +112,7 @@ def test_send_routes_to_send_command(monkeypatch: pytest.MonkeyPatch) -> None:
         calls["state"] = args.state
         calls["auth"] = args.auth
         calls["timeout"] = args.timeout
+        calls["format"] = args.format
         calls["model"] = args.model
         calls["no_stream"] = args.no_stream
         calls["stdin_text"] = stdin_text
@@ -131,6 +132,8 @@ def test_send_routes_to_send_command(monkeypatch: pytest.MonkeyPatch) -> None:
         "auth.json",
         "--timeout",
         "12",
+        "--format",
+        "json",
         "--model",
         "gpt-4o",
         "--no-stream",
@@ -144,6 +147,7 @@ def test_send_routes_to_send_command(monkeypatch: pytest.MonkeyPatch) -> None:
         "state": "state.json",
         "auth": "auth.json",
         "timeout": 12,
+        "format": "json",
         "model": "gpt-4o",
         "no_stream": True,
         "stdin_text": "stdin context",
@@ -263,15 +267,26 @@ def test_messages_routes_to_messages_command(monkeypatch: pytest.MonkeyPatch) ->
         calls["url_or_id"] = args.url_or_id
         calls["last"] = args.last
         calls["state"] = args.state
+        calls["format"] = args.format
         return 0
 
     monkeypatch.setattr(messages_command, "run_messages", fake_run_messages)
 
-    assert cli.main(["messages", "abc", "--last", "5", "--state", "state.json"]) == 0
+    assert cli.main([
+        "messages",
+        "abc",
+        "--last",
+        "5",
+        "--state",
+        "state.json",
+        "--format",
+        "markdown",
+    ]) == 0
     assert calls == {
         "url_or_id": "abc",
         "last": 5,
         "state": "state.json",
+        "format": "markdown",
     }
 
 
@@ -283,14 +298,27 @@ def test_status_routes_to_status_command(monkeypatch: pytest.MonkeyPatch) -> Non
         calls["state"] = args.state
         calls["auth"] = args.auth
         calls["timeout"] = args.timeout
+        calls["format"] = args.format
         return 0
 
     monkeypatch.setattr(status_command, "run_status", fake_run_status)
 
-    assert cli.main(["status", "abc", "--state", "state.json", "--auth", "auth.json", "--timeout", "12"]) == 0
+    assert cli.main([
+        "status",
+        "abc",
+        "--state",
+        "state.json",
+        "--auth",
+        "auth.json",
+        "--timeout",
+        "12",
+        "--format",
+        "json",
+    ]) == 0
     assert calls == {
         "url_or_id": "abc",
         "state": "state.json",
         "auth": "auth.json",
         "timeout": 12,
+        "format": "json",
     }
