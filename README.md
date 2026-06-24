@@ -37,6 +37,7 @@ gptty export --format md
 ## Current Features
 
 - one-shot SDK-backed prompts through `gptty ask`
+- centralized stdin policy for pipe-friendly prompts
 - pipe-friendly prompts, for example `git diff | gptty ask "review this patch"`
 - interactive terminal chat through the legacy `main.py` runtime
 - streaming replies in the terminal
@@ -120,6 +121,20 @@ Pipe stdin into the prompt:
 git diff | gptty ask "review this patch"
 ```
 
+When stdin and a prompt are both present, `gptty ask` sends stdin as context, followed by the prompt under `User prompt:`.
+
+Force reading stdin:
+
+```bash
+gptty ask --stdin "summarize this input"
+```
+
+Ignore piped stdin:
+
+```bash
+cat noisy.log | gptty ask --no-stdin "explain this from the prompt only"
+```
+
 Disable streaming and print the final response:
 
 ```bash
@@ -195,4 +210,4 @@ gptty chat --auth ./auth_data.json --state ./webchat_state.json
 
 This repository is in transition from `webchat-openai-cli` to `gptty`.
 
-PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. Later PRs will add attach existing ChatGPT conversations, messages/status, export, richer pipe workflows, and improved auth UX.
+PR0 establishes the package skeleton and console command. PR1 adds the SDK client boundary. PR2 adds the first SDK-backed command, `gptty ask`. PR3 centralizes stdin pipe handling. Later PRs will add attach existing ChatGPT conversations, messages/status, export, richer pipe workflows, and improved auth UX.
