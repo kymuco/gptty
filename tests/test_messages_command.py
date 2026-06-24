@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from argparse import Namespace
 from io import StringIO
 from typing import Any
@@ -43,6 +44,7 @@ def make_args(tmp_path, **overrides: Any) -> Namespace:
         "auth": "auth_data.json",
         "timeout": 90,
         "last": None,
+        "format": "plain",
     }
     values.update(overrides)
     return Namespace(**values)
@@ -70,6 +72,39 @@ def test_messages_uses_explicit_ref_and_last_limit(tmp_path) -> None:
     assert client.timeout == 12
     assert client.calls == [("get_messages", ("explicit-ref",), {"limit": 5})]
     assert stdout.getvalue() == "user:\nhello\n\nassistant:\nhi\n"
+
+
+def test_messages_supports_json_format(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    stdout = StringIO()
+
+    code = run_messages(
+        make_args(tmp_path, url_or_id="explicit-ref", format="json"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    assert code == 0
+    assert json.loads(stdout.getvalue()) == {
+        "messages": [
+            {"role": "user", "text": "hello", "created_at": None},
+            {"role": "assistant", "text": "hi", "created_at": None},
+        ]
+    }
+
+
+def test_messages_supports_markdown_format(tmp_path) -> None:
+    FakeGpttyClient.instances.clear()
+    stdout = StringIO()
+
+    code = run_messages(
+        make_args(tmp_path, url_or_id="explicit-ref", format="markdown"),
+        client_factory=FakeGpttyClient,
+        stdout=stdout,
+    )
+
+    assert code == 0
+    assert stdout.getvalue() == "### user\n\nhello\n\n### assistant\n\nhi\n"
 
 
 def test_messages_uses_attached_state_ref(tmp_path) -> None:
