@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gptty-web"
-version = "0.1.0"
+version = "0.1.1"
 description = "Terminal client for existing ChatGPT web sessions, powered by chatgpt-web-adapter."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,7 @@ classifiers = [
   "Topic :: Utilities",
 ]
 dependencies = [
-  "chatgpt-web-adapter>=0.1.4,<0.2.0",
+  "chatgpt-web-adapter>=0.1.5,<0.2.0",
 ]
 
 [project.optional-dependencies]
